@@ -9,6 +9,7 @@ FROM base AS release
 COPY --from=install /app/node_modules ./node_modules
 COPY src ./src
 COPY package.json .
+RUN mkdir -p data
 
 ENV NODE_ENV=production
 USER bun
