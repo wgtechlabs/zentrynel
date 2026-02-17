@@ -1,3 +1,5 @@
+import { existsSync, mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
 import { Database } from 'bun:sqlite';
 import { Defaults } from '../config/constants.js';
 import { env } from '../config/env.js';
@@ -6,6 +8,12 @@ import { createTables } from './schema.js';
 let database = null;
 
 export function initialize() {
+	const dbDir = dirname(env.DB_PATH);
+
+	if (!existsSync(dbDir)) {
+		mkdirSync(dbDir, { recursive: true });
+	}
+
 	database = new Database(env.DB_PATH, { create: true, strict: true });
 	database.run('PRAGMA journal_mode = WAL');
 	database.run('PRAGMA foreign_keys = ON');
