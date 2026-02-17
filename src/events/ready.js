@@ -1,6 +1,6 @@
 import { logger } from '../utils/logger.js';
 
-export const name = 'ready';
+export const name = 'clientReady';
 export const once = true;
 
 export async function execute(client) {
