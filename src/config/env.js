@@ -11,5 +11,5 @@ export const env = Object.freeze({
 	CLIENT_ID: process.env.CLIENT_ID,
 	DEV_GUILD_ID: process.env.DEV_GUILD_ID || null,
 	NODE_ENV: process.env.NODE_ENV || 'development',
-	DB_PATH: process.env.DB_PATH || './data/zentrynel.db',
+	DB_PATH: process.env.DB_PATH || '/app/data/zentrynel.db',
 });
