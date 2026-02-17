@@ -7,8 +7,6 @@ A sharding-ready Discord moderation bot with an escalating strike system, built 
 
 [![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/PPM7mm?referralCode=dTwT-i&utm_medium=integration&utm_source=template&utm_campaign=generic)
 
-[**Invite Zentrynel to your server**](https://discord.com/oauth2/authorize?client_id=1473211927437119611&permissions=1101659203590&integration_type=0&scope=bot+applications.commands)
-
 ## Features
 
 - **Slash commands** — `/warn`, `/mute`, `/kick`, `/ban`, `/purge`, `/warnings`, `/config`.
@@ -30,6 +28,12 @@ Fill in your `.env`:
 DISCORD_TOKEN=your_bot_token
 CLIENT_ID=your_application_client_id
 DEV_GUILD_ID=your_test_guild_id  # optional, for instant command registration
+```
+
+Invite the bot to your server (replace `YOUR_CLIENT_ID` with your application client ID):
+
+```
+https://discord.com/oauth2/authorize?client_id=YOUR_CLIENT_ID&permissions=1101659203590&integration_type=0&scope=bot+applications.commands
 ```
 
 ## Usage
