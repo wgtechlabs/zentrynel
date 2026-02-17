@@ -5,6 +5,8 @@
 
 A sharding-ready Discord moderation bot with an escalating strike system, built with Bun and discord.js v14. Protect your community with slash commands, automatic escalation, and per-server configuration out of the box.
 
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/PPM7mm?referralCode=dTwT-i&utm_medium=integration&utm_source=template&utm_campaign=generic)
+
 ## Features
 
 - **Slash commands** — `/warn`, `/mute`, `/kick`, `/ban`, `/purge`, `/warnings`, `/config`.
