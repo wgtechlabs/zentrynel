@@ -14,7 +14,7 @@
     "format": "bunx biome format --write ."
   },
   "author": "Waren Gonzaga",
-  "license": "MIT",
+  "license": "GPL-3.0",
   "engines": {
     "bun": ">=1.0.0"
   },

@@ -95,4 +95,4 @@ bun run format
 
 ## License
 
-MIT — WG Tech Labs
+[GPLv3](LICENSE) — WG Tech Labs
