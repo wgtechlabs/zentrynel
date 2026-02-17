@@ -7,6 +7,8 @@ A sharding-ready Discord moderation bot with an escalating strike system, built 
 
 [![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/PPM7mm?referralCode=dTwT-i&utm_medium=integration&utm_source=template&utm_campaign=generic)
 
+[**Invite Zentrynel to your server**](https://discord.com/oauth2/authorize?client_id=1473211927437119611&permissions=1101659203590&integration_type=0&scope=bot+applications.commands)
+
 ## Features
 
 - **Slash commands** — `/warn`, `/mute`, `/kick`, `/ban`, `/purge`, `/warnings`, `/config`.
