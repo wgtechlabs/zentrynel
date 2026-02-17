@@ -1,4 +1,4 @@
-import { PermissionFlagsBits, SlashCommandBuilder } from 'discord.js';
+import { MessageFlags, PermissionFlagsBits, SlashCommandBuilder } from 'discord.js';
 import { ActionTypes } from '../config/constants.js';
 import { db } from '../db/index.js';
 import { send as sendModLog } from '../services/modLog.js';
@@ -29,13 +29,13 @@ export async function execute(interaction) {
 	if (!targetMember) {
 		return interaction.reply({
 			embeds: [errorEmbed('User not found in this server.')],
-			ephemeral: true,
+			flags: [MessageFlags.Ephemeral],
 		});
 	}
 
 	const check = canModerate(interaction, targetMember);
 	if (!check.allowed) {
-		return interaction.reply({ embeds: [errorEmbed(check.reason)], ephemeral: true });
+		return interaction.reply({ embeds: [errorEmbed(check.reason)], flags: [MessageFlags.Ephemeral] });
 	}
 
 	let durationMs;
@@ -44,7 +44,7 @@ export async function execute(interaction) {
 		if (!durationMs) {
 			return interaction.reply({
 				embeds: [errorEmbed('Invalid duration format. Use: 10s, 5m, 1h, 2d')],
-				ephemeral: true,
+				flags: [MessageFlags.Ephemeral],
 			});
 		}
 	} else {
@@ -55,7 +55,7 @@ export async function execute(interaction) {
 	if (durationMs < 1_000 || durationMs > MAX_TIMEOUT) {
 		return interaction.reply({
 			embeds: [errorEmbed('Duration must be between 1 second and 28 days.')],
-			ephemeral: true,
+			flags: [MessageFlags.Ephemeral],
 		});
 	}
 

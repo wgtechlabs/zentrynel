@@ -1,4 +1,4 @@
-import { ChannelType, PermissionFlagsBits, SlashCommandBuilder } from 'discord.js';
+import { ChannelType, MessageFlags, PermissionFlagsBits, SlashCommandBuilder } from 'discord.js';
 import { EmbedBuilder } from 'discord.js';
 import { Colors } from '../config/constants.js';
 import { db } from '../db/index.js';
@@ -127,7 +127,7 @@ async function handleLogChannel(interaction) {
 			embeds: [
 				errorEmbed('I need **Send Messages** and **Embed Links** permissions in that channel.'),
 			],
-			ephemeral: true,
+			flags: [MessageFlags.Ephemeral],
 		});
 	}
 
@@ -146,7 +146,7 @@ async function handleThresholds(interaction) {
 	if (!mute && !kick && !ban) {
 		return interaction.reply({
 			embeds: [errorEmbed('Provide at least one threshold to update.')],
-			ephemeral: true,
+			flags: [MessageFlags.Ephemeral],
 		});
 	}
 
@@ -158,7 +158,7 @@ async function handleThresholds(interaction) {
 	if (newMute >= newKick || newKick >= newBan) {
 		return interaction.reply({
 			embeds: [errorEmbed('Thresholds must be in ascending order: mute < kick < ban.')],
-			ephemeral: true,
+			flags: [MessageFlags.Ephemeral],
 		});
 	}
 
@@ -187,7 +187,7 @@ async function handleMuteDuration(interaction) {
 	if (!ms) {
 		return interaction.reply({
 			embeds: [errorEmbed('Invalid duration format. Use: 10s, 5m, 1h, 2d')],
-			ephemeral: true,
+			flags: [MessageFlags.Ephemeral],
 		});
 	}
 
@@ -195,7 +195,7 @@ async function handleMuteDuration(interaction) {
 	if (ms < 1_000 || ms > maxTimeout) {
 		return interaction.reply({
 			embeds: [errorEmbed('Duration must be between 1 second and 28 days.')],
-			ephemeral: true,
+			flags: [MessageFlags.Ephemeral],
 		});
 	}
 

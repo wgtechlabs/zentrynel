@@ -1,4 +1,4 @@
-import { PermissionFlagsBits, SlashCommandBuilder } from 'discord.js';
+import { MessageFlags, PermissionFlagsBits, SlashCommandBuilder } from 'discord.js';
 import { ActionTypes } from '../config/constants.js';
 import { db } from '../db/index.js';
 import { send as sendModLog } from '../services/modLog.js';
@@ -22,19 +22,19 @@ export async function execute(interaction) {
 	if (!targetMember) {
 		return interaction.reply({
 			embeds: [errorEmbed('User not found in this server.')],
-			ephemeral: true,
+			flags: [MessageFlags.Ephemeral],
 		});
 	}
 
 	const check = canModerate(interaction, targetMember);
 	if (!check.allowed) {
-		return interaction.reply({ embeds: [errorEmbed(check.reason)], ephemeral: true });
+		return interaction.reply({ embeds: [errorEmbed(check.reason)], flags: [MessageFlags.Ephemeral] });
 	}
 
 	if (!targetMember.kickable) {
 		return interaction.reply({
 			embeds: [errorEmbed('I do not have permission to kick this user.')],
-			ephemeral: true,
+			flags: [MessageFlags.Ephemeral],
 		});
 	}
 

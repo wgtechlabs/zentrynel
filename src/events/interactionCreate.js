@@ -1,3 +1,4 @@
+import { MessageFlags } from 'discord.js';
 import { logger } from '../utils/logger.js';
 
 export const name = 'interactionCreate';
@@ -17,7 +18,7 @@ export async function execute(interaction, client) {
 	} catch (error) {
 		logger.error(`Error executing /${interaction.commandName}:`, error);
 
-		const reply = { content: 'There was an error executing this command.', ephemeral: true };
+		const reply = { content: 'There was an error executing this command.', flags: [MessageFlags.Ephemeral] };
 		if (interaction.replied || interaction.deferred) {
 			await interaction.followUp(reply);
 		} else {

@@ -1,4 +1,4 @@
-import { PermissionFlagsBits, SlashCommandBuilder } from 'discord.js';
+import { MessageFlags, PermissionFlagsBits, SlashCommandBuilder } from 'discord.js';
 import { db } from '../db/index.js';
 import { errorEmbed, warningListEmbed } from '../utils/embeds.js';
 
@@ -18,7 +18,7 @@ export async function execute(interaction) {
 	if (warnings.length === 0) {
 		return interaction.reply({
 			embeds: [errorEmbed(`${targetUser} has no active warnings.`)],
-			ephemeral: true,
+			flags: [MessageFlags.Ephemeral],
 		});
 	}
 

@@ -14,7 +14,7 @@ export function initialize() {
 		mkdirSync(dbDir, { recursive: true });
 	}
 
-	database = new Database(env.DB_PATH, { create: true, strict: true });
+	database = new Database(env.DB_PATH, { create: true });
 	database.run('PRAGMA journal_mode = WAL');
 	database.run('PRAGMA foreign_keys = ON');
 	createTables(database);

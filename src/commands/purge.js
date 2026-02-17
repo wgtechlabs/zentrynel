@@ -1,4 +1,4 @@
-import { PermissionFlagsBits, SlashCommandBuilder } from 'discord.js';
+import { MessageFlags, PermissionFlagsBits, SlashCommandBuilder } from 'discord.js';
 import { ActionTypes } from '../config/constants.js';
 import { db } from '../db/index.js';
 import { send as sendModLog } from '../services/modLog.js';
@@ -24,7 +24,7 @@ export async function execute(interaction) {
 	const amount = interaction.options.getInteger('amount');
 	const filterUser = interaction.options.getUser('user');
 
-	await interaction.deferReply({ ephemeral: true });
+	await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
 
 	const fetched = await interaction.channel.messages.fetch({ limit: amount });
 
