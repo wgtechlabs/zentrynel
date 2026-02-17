@@ -7,7 +7,7 @@ import { logger } from '../utils/logger.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-async function register() {
+export async function registerCommands() {
 	const commandsPath = join(__dirname, '..', 'commands');
 	const files = readdirSync(commandsPath).filter((f) => f.endsWith('.js'));
 
@@ -35,7 +35,14 @@ async function register() {
 	}
 }
 
-register().catch((err) => {
-	logger.error('Failed to register commands:', err);
-	process.exit(1);
-});
+// Allow running as standalone script: bun run src/handlers/commandRegistrar.js
+const isMain =
+	import.meta.url === `file://${process.argv[1]}` ||
+	process.argv[1]?.endsWith('commandRegistrar.js');
+
+if (isMain) {
+	registerCommands().catch((err) => {
+		logger.error('Failed to register commands:', err);
+		process.exit(1);
+	});
+}
