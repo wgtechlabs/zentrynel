@@ -11,6 +11,7 @@ A sharding-ready Discord moderation bot with an escalating strike system, built 
 
 - **Slash commands** — `/warn`, `/mute`, `/kick`, `/ban`, `/purge`, `/warnings`, `/config`.
 - **Escalating strike system** — Configurable per-server thresholds that auto-mute, kick, or ban.
+- **Two-layer member verification** — In-server button + challenge flow with manual moderator fallback queue.
 - **Sharding-ready** — Separate shard manager and client entry points, scales to thousands of servers.
 - **Swappable database** — Abstracted DB layer on `bun:sqlite`, swap to PostgreSQL with one import change.
 - **Per-server config** — Each server gets independent settings, log channels, and strike history.
@@ -63,6 +64,11 @@ bun run dev
 | `/config logchannel <channel>` | Administrator | Set mod log channel |
 | `/config thresholds [mute] [kick] [ban]` | Administrator | Set strike thresholds |
 | `/config muteduration <duration>` | Administrator | Set default mute duration |
+| `/config verificationenable <enabled>` | Administrator | Enable/disable member verification |
+| `/config verificationchannels <verify> <review>` | Administrator | Set verify and review channels |
+| `/config verificationroles <verified> <unverified>` | Administrator | Set verified/unverified roles |
+| `/config verificationrules [minage] [maxattempts]` | Administrator | Set account-age and retry rules |
+| `/config verificationpanel` | Administrator | Post verification button panel |
 | `/config reset` | Administrator | Reset to defaults |
 
 ## Escalation
@@ -76,6 +82,20 @@ Warnings automatically escalate based on per-server thresholds:
 | Ban | 7 warnings | Auto-ban |
 
 Server admins can customize these via `/config thresholds`.
+
+## Member Verification
+
+Verification is fully in-server (no DMs):
+
+1. Configure verification using:
+   - `/config verificationenable enabled:true`
+   - `/config verificationchannels verify:<channel> review:<channel>`
+   - `/config verificationroles verified:<role> unverified:<role>`
+2. Post the verification panel with `/config verificationpanel`.
+3. New members get the unverified role on join.
+4. Members click **Start Verification** in the verify channel:
+   - If automated checks + challenge pass, bot grants verified role.
+   - If risk/failure is detected, bot queues member in review channel for moderator action.
 
 ## Architecture
 
