@@ -1,11 +1,14 @@
 import { EmbedBuilder } from 'discord.js';
-import { Colors } from '../config/constants.js';
+import { BOT_VERSION, Colors } from '../config/constants.js';
+
+const FOOTER = { text: `Zentrynel v${BOT_VERSION} — Built by Waren Gonzaga (WG Tech Labs)` };
 
 export function successEmbed(title, description) {
 	return new EmbedBuilder()
 		.setColor(Colors.INFO)
 		.setTitle(title)
 		.setDescription(description)
+		.setFooter(FOOTER)
 		.setTimestamp();
 }
 
@@ -14,6 +17,7 @@ export function errorEmbed(description) {
 		.setColor(Colors.ERROR)
 		.setTitle('Error')
 		.setDescription(description)
+		.setFooter(FOOTER)
 		.setTimestamp();
 }
 
@@ -28,6 +32,7 @@ export function modActionEmbed({ actionType, targetUser, moderator, reason, dura
 			{ name: 'Moderator', value: `${moderator} (${moderator.id})`, inline: true },
 			{ name: 'Reason', value: reason || 'No reason provided' },
 		)
+		.setFooter(FOOTER)
 		.setTimestamp();
 
 	if (duration) {
@@ -46,6 +51,7 @@ export function warningListEmbed(targetUser, warnings) {
 		.setColor(Colors.WARN)
 		.setTitle(`Warnings for ${targetUser.tag || targetUser.username}`)
 		.setDescription(`Total active warnings: **${warnings.length}**`)
+		.setFooter(FOOTER)
 		.setTimestamp();
 
 	for (const warn of warnings.slice(0, 25)) {
