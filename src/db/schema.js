@@ -70,6 +70,7 @@ export function createTables(database) {
 			review_message_id TEXT,
 			manual_reason TEXT,
 			last_challenge_at TEXT,
+			invite_code TEXT,
 			created_at TEXT NOT NULL DEFAULT (datetime('now')),
 			updated_at TEXT NOT NULL DEFAULT (datetime('now')),
 			PRIMARY KEY (guild_id, user_id)
@@ -89,6 +90,7 @@ export function createTables(database) {
 	`);
 
 	ensureGuildConfigColumns(database);
+	ensureVerificationStateColumns(database);
 
 	const row = database
 		.query('SELECT version FROM schema_version ORDER BY version DESC LIMIT 1')
@@ -118,5 +120,18 @@ function ensureGuildConfigColumns(database) {
 		const columnName = definition.split(' ')[0];
 		if (names.has(columnName)) continue;
 		database.run(`ALTER TABLE guild_config ADD COLUMN ${definition}`);
+	}
+}
+
+function ensureVerificationStateColumns(database) {
+	const columns = database.query('PRAGMA table_info(verification_state)').all();
+	const names = new Set(columns.map((column) => column.name));
+
+	const requiredColumns = ['invite_code TEXT'];
+
+	for (const definition of requiredColumns) {
+		const columnName = definition.split(' ')[0];
+		if (names.has(columnName)) continue;
+		database.run(`ALTER TABLE verification_state ADD COLUMN ${definition}`);
 	}
 }

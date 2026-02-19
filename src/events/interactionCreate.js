@@ -6,7 +6,7 @@ export const name = 'interactionCreate';
 export const once = false;
 
 export async function execute(interaction, client) {
-	if (interaction.isButton()) {
+	if (interaction.isButton() || interaction.isModalSubmit()) {
 		try {
 			const handled = await handleVerificationInteraction(interaction);
 			if (handled) return;
@@ -22,7 +22,7 @@ export async function execute(interaction, client) {
 				await interaction.reply(reply);
 			}
 		}
-		return;
+		if (!interaction.isChatInputCommand()) return;
 	}
 
 	if (!interaction.isChatInputCommand()) return;

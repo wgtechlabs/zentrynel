@@ -139,6 +139,7 @@ const defaultVerificationState = {
 	review_message_id: null,
 	manual_reason: null,
 	last_challenge_at: null,
+	invite_code: null,
 };
 
 export function getVerificationState(guildId, userId) {
@@ -166,6 +167,7 @@ export function upsertVerificationState(guildId, userId, state) {
 				review_message_id,
 				manual_reason,
 				last_challenge_at,
+				invite_code,
 				updated_at
 			)
 			VALUES (
@@ -179,6 +181,7 @@ export function upsertVerificationState(guildId, userId, state) {
 				$review_message_id,
 				$manual_reason,
 				$last_challenge_at,
+				$invite_code,
 				datetime('now')
 			)
 			ON CONFLICT(guild_id, user_id) DO UPDATE SET
@@ -190,6 +193,7 @@ export function upsertVerificationState(guildId, userId, state) {
 				review_message_id = $review_message_id,
 				manual_reason = $manual_reason,
 				last_challenge_at = $last_challenge_at,
+				invite_code = $invite_code,
 				updated_at = datetime('now')
 		`)
 		.run({
@@ -203,6 +207,7 @@ export function upsertVerificationState(guildId, userId, state) {
 			$review_message_id: merged.review_message_id,
 			$manual_reason: merged.manual_reason,
 			$last_challenge_at: merged.last_challenge_at,
+			$invite_code: merged.invite_code,
 		});
 }
 

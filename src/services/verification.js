@@ -1,11 +1,16 @@
 import { randomInt, randomUUID } from 'node:crypto';
+import { createCanvas } from '@napi-rs/canvas';
 import {
 	ActionRowBuilder,
+	AttachmentBuilder,
 	ButtonBuilder,
 	ButtonStyle,
 	EmbedBuilder,
 	MessageFlags,
+	ModalBuilder,
 	PermissionFlagsBits,
+	TextInputBuilder,
+	TextInputStyle,
 } from 'discord.js';
 import { ActionTypes, Colors } from '../config/constants.js';
 import { db } from '../db/index.js';
@@ -15,30 +20,116 @@ import { send as sendModLog } from './modLog.js';
 const CHALLENGE_TTL_MS = 5 * 60 * 1000;
 const challengeSessions = new Map();
 
-const challengeTemplates = [
-	{
-		question: 'Which option is a fruit?',
-		options: ['Apple', 'Brick', 'Chair', 'Cloud'],
-		answer: 0,
-	},
-	{
-		question: 'Which animal says "meow"?',
-		options: ['Cat', 'Fish', 'Snake', 'Ant'],
-		answer: 0,
-	},
-	{
-		question: 'Which item can you drink?',
-		options: ['Water', 'Stone', 'Paper', 'Sand'],
-		answer: 0,
-	},
-	{
-		question: 'Which color is common for grass?',
-		options: ['Green', 'Purple', 'Orange', 'Black'],
-		answer: 0,
-	},
+const OPERATORS = [
+	{ symbol: '+', fn: (a, b) => a + b },
+	{ symbol: '−', fn: (a, b) => a - b },
+	{ symbol: '×', fn: (a, b) => a * b },
 ];
 
+function generateCaptcha() {
+	const op = OPERATORS[randomInt(OPERATORS.length)];
+	let a;
+	let b;
+	if (op.symbol === '−') {
+		a = randomInt(10, 99);
+		b = randomInt(1, a);
+	} else if (op.symbol === '×') {
+		a = randomInt(2, 12);
+		b = randomInt(2, 12);
+	} else {
+		a = randomInt(2, 50);
+		b = randomInt(2, 50);
+	}
+	const answer = op.fn(a, b);
+	const text = `${a} ${op.symbol} ${b} = ?`;
+	return { text, answer: String(answer) };
+}
+
+function renderCaptchaImage(text) {
+	const width = 280;
+	const height = 90;
+	const canvas = createCanvas(width, height);
+	const ctx = canvas.getContext('2d');
+
+	// Background with subtle gradient effect
+	ctx.fillStyle = `hsl(${randomInt(200, 260)}, 15%, 18%)`;
+	ctx.fillRect(0, 0, width, height);
+
+	// Noise lines
+	for (let i = 0; i < 6; i++) {
+		ctx.strokeStyle = `hsla(${randomInt(0, 360)}, 50%, 50%, 0.4)`;
+		ctx.lineWidth = randomInt(1, 3);
+		ctx.beginPath();
+		ctx.moveTo(randomInt(0, width), randomInt(0, height));
+		ctx.bezierCurveTo(
+			randomInt(0, width),
+			randomInt(0, height),
+			randomInt(0, width),
+			randomInt(0, height),
+			randomInt(0, width),
+			randomInt(0, height),
+		);
+		ctx.stroke();
+	}
+
+	// Noise dots
+	for (let i = 0; i < 80; i++) {
+		ctx.fillStyle = `hsla(${randomInt(0, 360)}, 40%, 60%, ${(randomInt(20, 60) / 100).toFixed(2)})`;
+		ctx.beginPath();
+		ctx.arc(randomInt(0, width), randomInt(0, height), randomInt(1, 3), 0, Math.PI * 2);
+		ctx.fill();
+	}
+
+	// Draw each character with individual distortion
+	const chars = text.split('');
+	const fontSize = 36;
+	const totalWidth = chars.length * 24;
+	let x = (width - totalWidth) / 2;
+
+	for (const char of chars) {
+		ctx.save();
+		const angle = (randomInt(-15, 16) * Math.PI) / 180;
+		const yOffset = randomInt(-6, 7);
+		ctx.translate(x + 12, height / 2 + yOffset);
+		ctx.rotate(angle);
+		ctx.font = `bold ${fontSize + randomInt(-4, 5)}px monospace`;
+		ctx.fillStyle = `hsl(${randomInt(0, 360)}, 70%, 75%)`;
+		ctx.textAlign = 'center';
+		ctx.textBaseline = 'middle';
+		ctx.fillText(char, 0, 0);
+		ctx.restore();
+		x += 24;
+	}
+
+	// Additional interference lines over text
+	for (let i = 0; i < 3; i++) {
+		ctx.strokeStyle = `hsla(${randomInt(0, 360)}, 60%, 60%, 0.3)`;
+		ctx.lineWidth = 1;
+		ctx.beginPath();
+		ctx.moveTo(randomInt(0, width), randomInt(0, height));
+		ctx.lineTo(randomInt(0, width), randomInt(0, height));
+		ctx.stroke();
+	}
+
+	return canvas.toBuffer('image/png');
+}
+
 export async function handleVerificationInteraction(interaction) {
+	if (interaction.isModalSubmit()) {
+		const parts = interaction.customId.split(':');
+		if (parts[0] === 'verify' && parts[1] === 'modal') {
+			pruneChallengeSessions();
+			await handleChallengeAnswer(interaction, parts[2]);
+			return true;
+		}
+		if (parts[0] === 'verify' && parts[1] === 'ctxmodal') {
+			pruneChallengeSessions();
+			await handleContextAnswer(interaction, parts[2]);
+			return true;
+		}
+		return false;
+	}
+
 	if (!interaction.isButton()) return false;
 
 	pruneChallengeSessions();
@@ -51,8 +142,13 @@ export async function handleVerificationInteraction(interaction) {
 		return true;
 	}
 
-	if (parts[1] === 'ans') {
-		await handleChallengeAnswer(interaction, parts[2], parts[3]);
+	if (parts[1] === 'answer') {
+		await showAnswerModal(interaction, parts[2]);
+		return true;
+	}
+
+	if (parts[1] === 'ctxanswer') {
+		await showContextModal(interaction, parts[2]);
 		return true;
 	}
 
@@ -161,25 +257,73 @@ async function handleVerificationStart(interaction) {
 		last_challenge_at: new Date().toISOString(),
 	});
 
+	const captchaImage = renderCaptchaImage(challenge.captchaText);
+	const attachment = new AttachmentBuilder(captchaImage, { name: 'captcha.png' });
+
 	const embed = new EmbedBuilder()
 		.setColor(Colors.INFO)
 		.setTitle('Verification Challenge')
 		.setDescription(
-			`Answer this challenge to verify your account:\n\n**${challenge.question}**\n\nThis challenge expires in 5 minutes.`,
+			'Solve the math problem shown in the image below and click **Submit Answer** to enter your answer.\n\nThis challenge expires in 5 minutes.',
 		)
+		.setImage('attachment://captcha.png')
 		.setTimestamp();
 
-	const row = new ActionRowBuilder().addComponents(challenge.buttons);
-	await interaction.reply({ embeds: [embed], components: [row], flags: [MessageFlags.Ephemeral] });
+	const row = new ActionRowBuilder().addComponents(
+		new ButtonBuilder()
+			.setCustomId(`verify:answer:${challenge.sessionId}`)
+			.setLabel('Submit Answer')
+			.setStyle(ButtonStyle.Primary),
+	);
+
+	await interaction.reply({
+		embeds: [embed],
+		components: [row],
+		files: [attachment],
+		flags: [MessageFlags.Ephemeral],
+	});
 }
 
-async function handleChallengeAnswer(interaction, sessionId, answerValue) {
+async function showAnswerModal(interaction, sessionId) {
 	const session = challengeSessions.get(sessionId);
 	if (!session) {
-		await interaction.update({
+		await interaction.reply({
 			content: 'This challenge has expired. Click the verify button again.',
-			embeds: [],
-			components: [],
+			flags: [MessageFlags.Ephemeral],
+		});
+		return;
+	}
+
+	if (session.guildId !== interaction.guildId || session.userId !== interaction.user.id) {
+		await interaction.reply({
+			content: 'This challenge belongs to another member.',
+			flags: [MessageFlags.Ephemeral],
+		});
+		return;
+	}
+
+	const modal = new ModalBuilder()
+		.setCustomId(`verify:modal:${sessionId}`)
+		.setTitle('Verification Challenge');
+
+	const answerInput = new TextInputBuilder()
+		.setCustomId('answer')
+		.setLabel('What is the answer to the math problem?')
+		.setStyle(TextInputStyle.Short)
+		.setPlaceholder('Type the number here')
+		.setRequired(true)
+		.setMaxLength(10);
+
+	modal.addComponents(new ActionRowBuilder().addComponents(answerInput));
+	await interaction.showModal(modal);
+}
+
+async function handleChallengeAnswer(interaction, sessionId) {
+	const session = challengeSessions.get(sessionId);
+	if (!session) {
+		await interaction.reply({
+			content: 'This challenge has expired. Click the verify button again.',
+			flags: [MessageFlags.Ephemeral],
 		});
 		return;
 	}
@@ -196,40 +340,317 @@ async function handleChallengeAnswer(interaction, sessionId, answerValue) {
 
 	if (Date.now() > session.expiresAt) {
 		const failed = await registerFailedAttempt(interaction, 'Challenge timed out.');
-		await interaction.update({
+		await interaction.reply({
 			content: failed.manualReview
 				? failed.queueError
 					? `Challenge timed out and manual review queue failed: ${failed.queueError}`
 					: 'Challenge timed out. Your verification has been sent to manual moderator review.'
 				: 'Challenge timed out. Click the verify button again.',
-			embeds: [],
-			components: [],
+			flags: [MessageFlags.Ephemeral],
 		});
 		return;
 	}
 
-	const answerIndex = Number.parseInt(answerValue, 10);
-	if (Number.isNaN(answerIndex) || answerIndex !== session.answerIndex) {
+	const userAnswer = interaction.fields.getTextInputValue('answer').trim();
+	if (userAnswer !== session.answer) {
 		const failed = await registerFailedAttempt(interaction, 'Incorrect challenge answer.');
-		await interaction.update({
+		await interaction.reply({
 			content: failed.manualReview
 				? failed.queueError
 					? `Incorrect answer and manual review queue failed: ${failed.queueError}`
 					: 'Incorrect answer. You reached the retry limit and were sent for manual moderator review.'
 				: 'Incorrect answer. Click the verify button to try again.',
-			embeds: [],
-			components: [],
+			flags: [MessageFlags.Ephemeral],
 		});
 		return;
 	}
 
+	// CAPTCHA passed — present the context challenge (phase 2)
+	const member = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
+	if (!member) {
+		await interaction.reply({
+			content: 'Unable to load your server membership. Please try again.',
+			flags: [MessageFlags.Ephemeral],
+		});
+		return;
+	}
+
+	const state = db.getVerificationState(interaction.guildId, interaction.user.id);
+	const ctxChallenge = createContextChallenge(
+		interaction.guildId,
+		interaction.user.id,
+		member,
+		state,
+	);
+
+	const ctxImage = renderContextChallengeImage(ctxChallenge.lines);
+	const attachment = new AttachmentBuilder(ctxImage, { name: 'context.png' });
+
+	const embed = new EmbedBuilder()
+		.setColor(Colors.INFO)
+		.setTitle('Verification — Identity Check')
+		.setDescription(
+			`CAPTCHA passed! Now answer this question from the image below.\n\n${ctxChallenge.hint}\n\nThis challenge expires in 5 minutes.`,
+		)
+		.setImage('attachment://context.png')
+		.setTimestamp();
+
+	const row = new ActionRowBuilder().addComponents(
+		new ButtonBuilder()
+			.setCustomId(`verify:ctxanswer:${ctxChallenge.sessionId}`)
+			.setLabel('Submit Answer')
+			.setStyle(ButtonStyle.Primary),
+	);
+
+	await interaction.reply({
+		embeds: [embed],
+		components: [row],
+		files: [attachment],
+		flags: [MessageFlags.Ephemeral],
+	});
+}
+
+// --- Context challenge generators ---
+
+function formatDate(date) {
+	return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+function generateFakeDates(realDate, count) {
+	const fakes = new Set();
+	while (fakes.size < count) {
+		const offsetDays = randomInt(1, 180) * (randomInt(2) === 0 ? 1 : -1);
+		const fake = new Date(realDate.getTime() + offsetDays * 86_400_000);
+		const formatted = formatDate(fake);
+		if (formatted !== formatDate(realDate)) {
+			fakes.add(formatted);
+		}
+	}
+	return [...fakes];
+}
+
+function createContextChallenge(guildId, userId, member, verificationState) {
+	const questionTypes = ['server_join', 'account_created'];
+	if (verificationState?.invite_code) {
+		questionTypes.push('invite_code');
+	}
+
+	const type = questionTypes[randomInt(questionTypes.length)];
+	const sessionId = randomUUID().split('-')[0];
+	let lines;
+	let answer;
+	let hint;
+
+	if (type === 'server_join') {
+		const joinDate = member.joinedAt;
+		const correct = formatDate(joinDate);
+		const fakes = generateFakeDates(joinDate, 3);
+		const answerPos = randomInt(4);
+		const options = [...fakes];
+		options.splice(answerPos, 0, correct);
+		answer = String(answerPos + 1);
+		lines = ['When did you join this server?', '', ...options.map((o, i) => `${i + 1}. ${o}`)];
+		hint = 'Type the **number** (1–4) of the correct date.';
+	} else if (type === 'account_created') {
+		const createdDate = member.user.createdAt;
+		const correct = formatDate(createdDate);
+		const fakes = generateFakeDates(createdDate, 3);
+		const answerPos = randomInt(4);
+		const options = [...fakes];
+		options.splice(answerPos, 0, correct);
+		answer = String(answerPos + 1);
+		lines = [
+			'When was your Discord account created?',
+			'',
+			...options.map((o, i) => `${i + 1}. ${o}`),
+		];
+		hint = 'Type the **number** (1–4) of the correct date.';
+	} else {
+		answer = verificationState.invite_code;
+		lines = ['What invite code did you use', 'to join this server?'];
+		hint = 'Type the **exact invite code** (e.g. `aBcDeFg`).';
+	}
+
+	challengeSessions.set(sessionId, {
+		guildId,
+		userId,
+		answer,
+		phase: 'context',
+		expiresAt: Date.now() + CHALLENGE_TTL_MS,
+	});
+
+	return { sessionId, lines, hint };
+}
+
+function renderContextChallengeImage(lines) {
+	const lineHeight = 32;
+	const padding = 24;
+	const width = 400;
+	const height = padding * 2 + lines.length * lineHeight;
+	const canvas = createCanvas(width, height);
+	const ctx = canvas.getContext('2d');
+
+	// Background
+	ctx.fillStyle = `hsl(${randomInt(200, 260)}, 15%, 18%)`;
+	ctx.fillRect(0, 0, width, height);
+
+	// Noise lines
+	for (let i = 0; i < 4; i++) {
+		ctx.strokeStyle = `hsla(${randomInt(0, 360)}, 50%, 50%, 0.3)`;
+		ctx.lineWidth = 1;
+		ctx.beginPath();
+		ctx.moveTo(randomInt(0, width), randomInt(0, height));
+		ctx.bezierCurveTo(
+			randomInt(0, width),
+			randomInt(0, height),
+			randomInt(0, width),
+			randomInt(0, height),
+			randomInt(0, width),
+			randomInt(0, height),
+		);
+		ctx.stroke();
+	}
+
+	// Noise dots
+	for (let i = 0; i < 40; i++) {
+		ctx.fillStyle = `hsla(${randomInt(0, 360)}, 40%, 60%, ${(randomInt(20, 50) / 100).toFixed(2)})`;
+		ctx.beginPath();
+		ctx.arc(randomInt(0, width), randomInt(0, height), randomInt(1, 3), 0, Math.PI * 2);
+		ctx.fill();
+	}
+
+	// Draw lines with slight per-character distortion
+	let y = padding + lineHeight / 2;
+	for (const line of lines) {
+		if (line === '') {
+			y += lineHeight * 0.5;
+			continue;
+		}
+		const isQuestion = !line.match(/^\d\./);
+		const fontSize = isQuestion ? 20 : 18;
+		const chars = line.split('');
+		let x = padding;
+
+		for (const char of chars) {
+			ctx.save();
+			const angle = (randomInt(-5, 6) * Math.PI) / 180;
+			const yOff = randomInt(-2, 3);
+			ctx.translate(x + 6, y + yOff);
+			ctx.rotate(angle);
+			ctx.font = `${isQuestion ? 'bold' : 'normal'} ${fontSize}px monospace`;
+			ctx.fillStyle = isQuestion
+				? `hsl(${randomInt(40, 60)}, 80%, 75%)`
+				: `hsl(${randomInt(180, 220)}, 70%, 75%)`;
+			ctx.textAlign = 'center';
+			ctx.textBaseline = 'middle';
+			ctx.fillText(char, 0, 0);
+			ctx.restore();
+			x += fontSize * 0.62;
+		}
+		y += lineHeight;
+	}
+
+	// Interference lines over text
+	for (let i = 0; i < 2; i++) {
+		ctx.strokeStyle = `hsla(${randomInt(0, 360)}, 60%, 60%, 0.25)`;
+		ctx.lineWidth = 1;
+		ctx.beginPath();
+		ctx.moveTo(randomInt(0, width), randomInt(0, height));
+		ctx.lineTo(randomInt(0, width), randomInt(0, height));
+		ctx.stroke();
+	}
+
+	return canvas.toBuffer('image/png');
+}
+
+async function showContextModal(interaction, sessionId) {
+	const session = challengeSessions.get(sessionId);
+	if (!session) {
+		await interaction.reply({
+			content: 'This challenge has expired. Click the verify button again.',
+			flags: [MessageFlags.Ephemeral],
+		});
+		return;
+	}
+
+	if (session.guildId !== interaction.guildId || session.userId !== interaction.user.id) {
+		await interaction.reply({
+			content: 'This challenge belongs to another member.',
+			flags: [MessageFlags.Ephemeral],
+		});
+		return;
+	}
+
+	const modal = new ModalBuilder()
+		.setCustomId(`verify:ctxmodal:${sessionId}`)
+		.setTitle('Identity Verification');
+
+	const answerInput = new TextInputBuilder()
+		.setCustomId('ctxanswer')
+		.setLabel('Your answer')
+		.setStyle(TextInputStyle.Short)
+		.setPlaceholder('Type the number or invite code')
+		.setRequired(true)
+		.setMaxLength(20);
+
+	modal.addComponents(new ActionRowBuilder().addComponents(answerInput));
+	await interaction.showModal(modal);
+}
+
+async function handleContextAnswer(interaction, sessionId) {
+	const session = challengeSessions.get(sessionId);
+	if (!session) {
+		await interaction.reply({
+			content: 'This challenge has expired. Click the verify button again.',
+			flags: [MessageFlags.Ephemeral],
+		});
+		return;
+	}
+
+	if (session.guildId !== interaction.guildId || session.userId !== interaction.user.id) {
+		await interaction.reply({
+			content: 'This challenge belongs to another member.',
+			flags: [MessageFlags.Ephemeral],
+		});
+		return;
+	}
+
+	challengeSessions.delete(sessionId);
+
+	if (Date.now() > session.expiresAt) {
+		const failed = await registerFailedAttempt(interaction, 'Challenge timed out.');
+		await interaction.reply({
+			content: failed.manualReview
+				? failed.queueError
+					? `Challenge timed out and manual review queue failed: ${failed.queueError}`
+					: 'Challenge timed out. Your verification has been sent to manual moderator review.'
+				: 'Challenge timed out. Click the verify button again.',
+			flags: [MessageFlags.Ephemeral],
+		});
+		return;
+	}
+
+	const userAnswer = interaction.fields.getTextInputValue('ctxanswer').trim();
+	if (userAnswer !== session.answer) {
+		const failed = await registerFailedAttempt(interaction, 'Incorrect identity check answer.');
+		await interaction.reply({
+			content: failed.manualReview
+				? failed.queueError
+					? `Incorrect answer and manual review queue failed: ${failed.queueError}`
+					: 'Incorrect answer. You reached the retry limit and were sent for manual moderator review.'
+				: 'Incorrect answer. Click the verify button to try again.',
+			flags: [MessageFlags.Ephemeral],
+		});
+		return;
+	}
+
+	// Both phases passed — verify the member
 	const config = db.getGuildConfig(interaction.guildId);
 	const member = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
 	if (!member) {
-		await interaction.update({
+		await interaction.reply({
 			content: 'Unable to load your server membership. Please try again.',
-			embeds: [],
-			components: [],
+			flags: [MessageFlags.Ephemeral],
 		});
 		return;
 	}
@@ -245,12 +666,11 @@ async function handleChallengeAnswer(interaction, sessionId, answerValue) {
 			riskScore: 0,
 			triggeredBy: interaction.user,
 		});
-		await interaction.update({
+		await interaction.reply({
 			content: queued.error
 				? `Automated verification passed, but role assignment and manual queue failed: ${queued.error}`
 				: 'Automated verification passed, but role assignment needs moderator review.',
-			embeds: [],
-			components: [],
+			flags: [MessageFlags.Ephemeral],
 		});
 		return;
 	}
@@ -281,10 +701,9 @@ async function handleChallengeAnswer(interaction, sessionId, answerValue) {
 		reason: 'Automated verification approved',
 	});
 
-	await interaction.update({
+	await interaction.reply({
 		content: `Verification complete. You now have <@&${config.verified_role_id}>.`,
-		embeds: [],
-		components: [],
+		flags: [MessageFlags.Ephemeral],
 	});
 }
 
@@ -448,45 +867,20 @@ async function handleManualReviewAction(interaction, decision, userId) {
 }
 
 function createChallenge(guildId, userId) {
-	const template = challengeTemplates[randomInt(challengeTemplates.length)];
-	const options = shuffle(
-		template.options.map((label, originalIndex) => ({
-			label,
-			originalIndex,
-		})),
-	);
-	const answerIndex = options.findIndex((option) => option.originalIndex === template.answer);
+	const captcha = generateCaptcha();
 	const sessionId = randomUUID().split('-')[0];
 
 	challengeSessions.set(sessionId, {
 		guildId,
 		userId,
-		answerIndex,
+		answer: captcha.answer,
 		expiresAt: Date.now() + CHALLENGE_TTL_MS,
 	});
 
-	const buttons = options.map((option, index) =>
-		new ButtonBuilder()
-			.setCustomId(`verify:ans:${sessionId}:${index}`)
-			.setLabel(option.label)
-			.setStyle(ButtonStyle.Secondary),
-	);
-
 	return {
-		question: template.question,
-		buttons,
+		sessionId,
+		captchaText: captcha.text,
 	};
-}
-
-function shuffle(items) {
-	const next = [...items];
-	for (let i = next.length - 1; i > 0; i--) {
-		const j = randomInt(i + 1);
-		const temp = next[i];
-		next[i] = next[j];
-		next[j] = temp;
-	}
-	return next;
 }
 
 function evaluateRisk(member, minAccountAgeHours) {

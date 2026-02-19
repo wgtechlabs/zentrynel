@@ -1,5 +1,6 @@
 import { PermissionFlagsBits } from 'discord.js';
 import { db } from '../db/index.js';
+import { resolveUsedInvite } from '../services/inviteTracker.js';
 import { logger } from '../utils/logger.js';
 
 export const name = 'guildMemberAdd';
@@ -52,11 +53,14 @@ export async function execute(member) {
 			);
 	}
 
+	const inviteCode = await resolveUsedInvite(member.guild);
+
 	db.upsertVerificationState(member.guild.id, member.id, {
 		status: 'PENDING',
 		attempts: 0,
 		manual_required: 0,
 		review_message_id: null,
 		manual_reason: null,
+		invite_code: inviteCode,
 	});
 }
