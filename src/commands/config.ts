@@ -9,12 +9,10 @@ import {
 	SlashCommandBuilder,
 } from 'discord.js';
 import type { ChatInputCommandInteraction } from 'discord.js';
-import { BOT_VERSION, Colors } from '../config/constants.js';
+import { Colors } from '../config/constants.js';
 import { db } from '../db/index.js';
-import { errorEmbed, successEmbed } from '../utils/embeds.js';
+import { FOOTER, errorEmbed, successEmbed } from '../utils/embeds.js';
 import { formatDuration, parseDuration } from '../utils/time.js';
-
-const FOOTER = { text: `Zentrynel v${BOT_VERSION} — Built by Waren Gonzaga (WG Tech Labs)` };
 
 export const data = new SlashCommandBuilder()
 	.setName('config')

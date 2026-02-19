@@ -24,6 +24,7 @@ import type {
 import { ActionTypes, BOT_VERSION, Colors } from '../config/constants.js';
 import { db } from '../db/index.js';
 import type { GuildConfig, VerificationState } from '../types.js';
+import { FOOTER } from '../utils/embeds.js';
 import { logger } from '../utils/logger.js';
 import { send as sendModLog } from './modLog.js';
 
@@ -37,8 +38,6 @@ interface ChallengeSession {
 
 const CHALLENGE_TTL_MS = 5 * 60 * 1000;
 const challengeSessions = new Map<string, ChallengeSession>();
-
-const FOOTER = { text: `Zentrynel v${BOT_VERSION} — Built by Waren Gonzaga (WG Tech Labs)` };
 
 const OPERATORS: { symbol: string; fn: (a: number, b: number) => number }[] = [
 	{ symbol: '+', fn: (a, b) => a + b },
@@ -65,18 +64,21 @@ function generateCaptcha(): { text: string; answer: string } {
 	return { text, answer: String(answer) };
 }
 
-function renderCaptchaImage(text: string): Buffer {
-	const width = 280;
-	const height = 90;
-	const canvas = createCanvas(width, height);
-	const ctx = canvas.getContext('2d');
-
-	// Background with subtle gradient effect
+/**
+ * Paint a noisy background on a canvas context: fills with a dark HSL color,
+ * draws bezier noise lines, and scatters random dots.
+ */
+function paintCanvasNoise(
+	ctx: ReturnType<ReturnType<typeof createCanvas>['getContext']>,
+	width: number,
+	height: number,
+	lineCount: number,
+	dotCount: number,
+): void {
 	ctx.fillStyle = `hsl(${randomInt(200, 260)}, 15%, 18%)`;
 	ctx.fillRect(0, 0, width, height);
 
-	// Noise lines
-	for (let i = 0; i < 6; i++) {
+	for (let i = 0; i < lineCount; i++) {
 		ctx.strokeStyle = `hsla(${randomInt(0, 360)}, 50%, 50%, 0.4)`;
 		ctx.lineWidth = randomInt(1, 3);
 		ctx.beginPath();
@@ -92,13 +94,21 @@ function renderCaptchaImage(text: string): Buffer {
 		ctx.stroke();
 	}
 
-	// Noise dots
-	for (let i = 0; i < 80; i++) {
+	for (let i = 0; i < dotCount; i++) {
 		ctx.fillStyle = `hsla(${randomInt(0, 360)}, 40%, 60%, ${(randomInt(20, 60) / 100).toFixed(2)})`;
 		ctx.beginPath();
 		ctx.arc(randomInt(0, width), randomInt(0, height), randomInt(1, 3), 0, Math.PI * 2);
 		ctx.fill();
 	}
+}
+
+function renderCaptchaImage(text: string): Buffer {
+	const width = 280;
+	const height = 90;
+	const canvas = createCanvas(width, height);
+	const ctx = canvas.getContext('2d');
+
+	paintCanvasNoise(ctx, width, height, 6, 80);
 
 	// Draw each character with individual distortion
 	const chars = text.split('');
@@ -442,8 +452,11 @@ function formatDate(date: Date): string {
 }
 
 function generateFakeDates(realDate: Date, count: number): string[] {
-	const fakes = new Set();
-	while (fakes.size < count) {
+	const fakes = new Set<string>();
+	const maxAttempts = count * 10;
+	let attempts = 0;
+	while (fakes.size < count && attempts < maxAttempts) {
+		attempts++;
 		const offsetDays = randomInt(1, 180) * (randomInt(2) === 0 ? 1 : -1);
 		const fake = new Date(realDate.getTime() + offsetDays * 86_400_000);
 		const formatted = formatDate(fake);
@@ -515,39 +528,12 @@ function createContextChallenge(
 function renderContextChallengeImage(lines: string[]): Buffer {
 	const lineHeight = 32;
 	const padding = 24;
-	const width = 400;
+	const width = 520;
 	const height = padding * 2 + lines.length * lineHeight;
 	const canvas = createCanvas(width, height);
 	const ctx = canvas.getContext('2d');
 
-	// Background
-	ctx.fillStyle = `hsl(${randomInt(200, 260)}, 15%, 18%)`;
-	ctx.fillRect(0, 0, width, height);
-
-	// Noise lines
-	for (let i = 0; i < 4; i++) {
-		ctx.strokeStyle = `hsla(${randomInt(0, 360)}, 50%, 50%, 0.3)`;
-		ctx.lineWidth = 1;
-		ctx.beginPath();
-		ctx.moveTo(randomInt(0, width), randomInt(0, height));
-		ctx.bezierCurveTo(
-			randomInt(0, width),
-			randomInt(0, height),
-			randomInt(0, width),
-			randomInt(0, height),
-			randomInt(0, width),
-			randomInt(0, height),
-		);
-		ctx.stroke();
-	}
-
-	// Noise dots
-	for (let i = 0; i < 40; i++) {
-		ctx.fillStyle = `hsla(${randomInt(0, 360)}, 40%, 60%, ${(randomInt(20, 50) / 100).toFixed(2)})`;
-		ctx.beginPath();
-		ctx.arc(randomInt(0, width), randomInt(0, height), randomInt(1, 3), 0, Math.PI * 2);
-		ctx.fill();
-	}
+	paintCanvasNoise(ctx, width, height, 4, 40);
 
 	// Draw lines with slight per-character distortion
 	let y = padding + lineHeight / 2;

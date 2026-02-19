@@ -2,7 +2,7 @@ import type { EmbedBuilder, User } from 'discord.js';
 import { EmbedBuilder as EmbedBuilderImpl } from 'discord.js';
 import { BOT_VERSION, Colors } from '../config/constants.js';
 
-const FOOTER = { text: `Zentrynel v${BOT_VERSION} — Built by Waren Gonzaga (WG Tech Labs)` };
+export const FOOTER = { text: `Zentrynel v${BOT_VERSION} — Built by Waren Gonzaga (WG Tech Labs)` };
 
 export function successEmbed(title: string, description: string): EmbedBuilder {
 	return new EmbedBuilderImpl()
