@@ -17,7 +17,13 @@ export const data = new SlashCommandBuilder()
 	.setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers);
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
-	if (!interaction.guildId || !interaction.guild) return;
+	if (!interaction.guildId || !interaction.guild) {
+		await interaction.reply({
+			content: 'This command can only be used in a server.',
+			flags: [MessageFlags.Ephemeral],
+		});
+		return;
+	}
 
 	const targetUser = interaction.options.getUser('user', true);
 	const reason = (interaction.options.getString('reason') || 'No reason provided').slice(0, 1000);
@@ -30,7 +36,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 		});
 	}
 
-	const check = canModerate(interaction, targetMember);
+	const check = await canModerate(interaction, targetMember);
 	if (!check.allowed) {
 		return interaction.reply({
 			embeds: [errorEmbed(check.reason)],

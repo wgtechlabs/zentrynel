@@ -4,6 +4,7 @@ import { ActionTypes } from '../config/constants.js';
 import { db } from '../db/index.js';
 import { send as sendModLog } from '../services/modLog.js';
 import { errorEmbed, successEmbed } from '../utils/embeds.js';
+import { logger } from '../utils/logger.js';
 import { canModerate } from '../utils/permissions.js';
 
 export const data = new SlashCommandBuilder()
@@ -23,7 +24,13 @@ export const data = new SlashCommandBuilder()
 	.setDefaultMemberPermissions(PermissionFlagsBits.BanMembers);
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
-	if (!interaction.guildId || !interaction.guild) return;
+	if (!interaction.guildId || !interaction.guild) {
+		await interaction.reply({
+			content: 'This command can only be used in a server.',
+			flags: [MessageFlags.Ephemeral],
+		});
+		return;
+	}
 
 	const targetUser = interaction.options.getUser('user', true);
 	const reason = (interaction.options.getString('reason') || 'No reason provided').slice(0, 1000);
@@ -32,7 +39,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 	const targetMember = await interaction.guild?.members.fetch(targetUser.id).catch(() => null);
 
 	if (targetMember) {
-		const check = canModerate(interaction, targetMember);
+		const check = await canModerate(interaction, targetMember);
 		if (!check.allowed) {
 			return interaction.reply({
 				embeds: [errorEmbed(check.reason)],

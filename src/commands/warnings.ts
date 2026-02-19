@@ -12,7 +12,13 @@ export const data = new SlashCommandBuilder()
 	.setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers);
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
-	if (!interaction.guildId) return;
+	if (!interaction.guildId) {
+		await interaction.reply({
+			content: 'This command can only be used in a server.',
+			flags: [MessageFlags.Ephemeral],
+		});
+		return;
+	}
 
 	const targetUser = interaction.options.getUser('user', true);
 

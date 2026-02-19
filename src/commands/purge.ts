@@ -4,6 +4,7 @@ import { ActionTypes } from '../config/constants.js';
 import { db } from '../db/index.js';
 import { send as sendModLog } from '../services/modLog.js';
 import { errorEmbed, successEmbed } from '../utils/embeds.js';
+import { logger } from '../utils/logger.js';
 
 export const data = new SlashCommandBuilder()
 	.setName('purge')
@@ -22,7 +23,13 @@ export const data = new SlashCommandBuilder()
 	.setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages);
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
-	if (!interaction.guildId || !interaction.guild) return;
+	if (!interaction.guildId || !interaction.guild) {
+		await interaction.reply({
+			content: 'This command can only be used in a server.',
+			flags: [MessageFlags.Ephemeral],
+		});
+		return;
+	}
 
 	const amount = interaction.options.getInteger('amount', true);
 	const filterUser = interaction.options.getUser('user');
@@ -37,15 +44,24 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 		return;
 	}
 
-	const fetched = await channel.messages.fetch({ limit: amount });
+	let deletedCount: number;
+	try {
+		const fetched = await channel.messages.fetch({ limit: amount });
 
-	let toDelete = fetched;
-	if (filterUser) {
-		toDelete = fetched.filter((msg) => msg.author.id === filterUser.id);
+		let toDelete = fetched;
+		if (filterUser) {
+			toDelete = fetched.filter((msg) => msg.author.id === filterUser.id);
+		}
+
+		const deleted = await channel.bulkDelete(toDelete, true);
+		deletedCount = deleted?.size ?? 0;
+	} catch (err) {
+		logger.error(`Failed to purge messages in channel ${channel.id}:`, err);
+		await interaction.editReply({
+			embeds: [errorEmbed(`Failed to purge messages: ${(err as Error).message}`)],
+		});
+		return;
 	}
-
-	const deleted = await channel.bulkDelete(toDelete, true);
-	const deletedCount = deleted?.size ?? 0;
 
 	db.logAction(
 		interaction.guildId,
@@ -59,7 +75,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
 	await sendModLog(interaction.guild, {
 		actionType: ActionTypes.PURGE,
-		targetUser: filterUser || interaction.user,
+		targetUser: filterUser ?? null,
 		moderator: interaction.user,
 		reason: filterUser
 			? `Purged ${deletedCount} messages from ${filterUser}`

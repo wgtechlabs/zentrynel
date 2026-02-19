@@ -4,6 +4,7 @@ import { ActionTypes } from '../config/constants.js';
 import { db } from '../db/index.js';
 import { send as sendModLog } from '../services/modLog.js';
 import { errorEmbed, successEmbed } from '../utils/embeds.js';
+import { logger } from '../utils/logger.js';
 import { canModerate } from '../utils/permissions.js';
 import { formatDuration, parseDuration } from '../utils/time.js';
 
@@ -22,7 +23,13 @@ export const data = new SlashCommandBuilder()
 	.setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers);
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
-	if (!interaction.guildId || !interaction.guild) return;
+	if (!interaction.guildId || !interaction.guild) {
+		await interaction.reply({
+			content: 'This command can only be used in a server.',
+			flags: [MessageFlags.Ephemeral],
+		});
+		return;
+	}
 
 	const targetUser = interaction.options.getUser('user', true);
 	const durationStr = interaction.options.getString('duration');
@@ -36,7 +43,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 		});
 	}
 
-	const check = canModerate(interaction, targetMember);
+	const check = await canModerate(interaction, targetMember);
 	if (!check.allowed) {
 		return interaction.reply({
 			embeds: [errorEmbed(check.reason)],
@@ -66,9 +73,18 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 		});
 	}
 
-	await targetMember.timeout(durationMs, reason);
+	try {
+		await targetMember.timeout(durationMs, reason);
+	} catch (err) {
+		logger.error(`Failed to mute user ${targetUser.id} in guild ${interaction.guildId}:`, err);
+		await interaction.reply({
+			embeds: [errorEmbed(`Failed to mute the user: ${(err as Error).message}`)],
+			flags: [MessageFlags.Ephemeral],
+		});
+		return;
+	}
 
-	db.logAction(
+	await db.logAction(
 		interaction.guildId,
 		ActionTypes.MUTE,
 		targetUser.id,
