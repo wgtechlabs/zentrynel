@@ -7,7 +7,7 @@ export const name = 'guildCreate';
 export const once = false;
 
 export async function execute(guild: Guild): Promise<void> {
-	await db.upsertGuildConfig(guild.id, {});
+	db.upsertGuildConfig(guild.id, {});
 	await cacheGuildInvites(guild);
 	logger.info(`Joined guild: ${guild.name} (${guild.id})`);
 }
