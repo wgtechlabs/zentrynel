@@ -172,7 +172,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 async function handleView(interaction: ChatInputCommandInteraction): Promise<void> {
 	if (!interaction.guildId) return;
 
-	const config = await db.getGuildConfig(interaction.guildId);
+	const config = db.getGuildConfig(interaction.guildId);
 
 	const embed = new EmbedBuilder()
 		.setColor(Colors.INFO)
@@ -185,7 +185,7 @@ async function handleView(interaction: ChatInputCommandInteraction): Promise<voi
 			},
 			{
 				name: 'Default Mute Duration',
-				value: formatMs(config.mute_duration_default),
+				value: formatDuration(config.mute_duration_default),
 				inline: true,
 			},
 			{ name: '\u200b', value: '\u200b', inline: true },
@@ -245,9 +245,17 @@ async function handleView(interaction: ChatInputCommandInteraction): Promise<voi
 async function handleLogChannel(interaction: ChatInputCommandInteraction): Promise<void> {
 	if (!interaction.guildId) return;
 
-	const channel = interaction.options.getChannel('channel');
+	const channel = interaction.options.getChannel('channel', true);
 
-	const permissions = channel.permissionsFor(interaction.guild?.members.me);
+	const botMember = interaction.guild?.members.me;
+	if (!botMember) {
+		return interaction.reply({
+			embeds: [errorEmbed('Unable to resolve my own permissions.')],
+			flags: [MessageFlags.Ephemeral],
+		});
+	}
+
+	const permissions = channel.permissionsFor(botMember);
 	if (!permissions?.has(['SendMessages', 'EmbedLinks'])) {
 		return interaction.reply({
 			embeds: [
@@ -257,7 +265,7 @@ async function handleLogChannel(interaction: ChatInputCommandInteraction): Promi
 		});
 	}
 
-	await db.upsertGuildConfig(interaction.guildId, { log_channel_id: channel.id });
+	db.upsertGuildConfig(interaction.guildId, { log_channel_id: channel.id });
 
 	await interaction.reply({
 		embeds: [successEmbed('Log Channel Set', `Mod action logs will be sent to ${channel}.`)],
@@ -271,14 +279,14 @@ async function handleThresholds(interaction: ChatInputCommandInteraction): Promi
 	const kick = interaction.options.getInteger('kick');
 	const ban = interaction.options.getInteger('ban');
 
-	if (!mute && !kick && !ban) {
+	if (mute === null && kick === null && ban === null) {
 		return interaction.reply({
 			embeds: [errorEmbed('Provide at least one threshold to update.')],
 			flags: [MessageFlags.Ephemeral],
 		});
 	}
 
-	const config = await db.getGuildConfig(interaction.guildId);
+	const config = db.getGuildConfig(interaction.guildId);
 	const newMute = mute ?? config.warn_threshold_mute;
 	const newKick = kick ?? config.warn_threshold_kick;
 	const newBan = ban ?? config.warn_threshold_ban;
@@ -290,7 +298,7 @@ async function handleThresholds(interaction: ChatInputCommandInteraction): Promi
 		});
 	}
 
-	await db.upsertGuildConfig(interaction.guildId, {
+	db.upsertGuildConfig(interaction.guildId, {
 		warn_threshold_mute: newMute,
 		warn_threshold_kick: newKick,
 		warn_threshold_ban: newBan,
@@ -309,9 +317,7 @@ async function handleThresholds(interaction: ChatInputCommandInteraction): Promi
 async function handleMuteDuration(interaction: ChatInputCommandInteraction): Promise<void> {
 	if (!interaction.guildId) return;
 
-	const { parseDuration, formatDuration } = await import('../utils/time.js');
-
-	const input = interaction.options.getString('duration');
+	const input = interaction.options.getString('duration', true);
 	const ms = parseDuration(input);
 
 	if (!ms) {
@@ -329,7 +335,7 @@ async function handleMuteDuration(interaction: ChatInputCommandInteraction): Pro
 		});
 	}
 
-	await db.upsertGuildConfig(interaction.guildId, { mute_duration_default: ms });
+	db.upsertGuildConfig(interaction.guildId, { mute_duration_default: ms });
 
 	await interaction.reply({
 		embeds: [successEmbed('Default Mute Duration Updated', `Set to **${formatDuration(ms)}**.`)],
@@ -341,7 +347,7 @@ async function handleVerificationEnable(interaction: ChatInputCommandInteraction
 
 	const enabled = interaction.options.getBoolean('enabled', true);
 
-	await db.upsertGuildConfig(interaction.guildId, { verification_enabled: enabled ? 1 : 0 });
+	db.upsertGuildConfig(interaction.guildId, { verification_enabled: enabled ? 1 : 0 });
 
 	await interaction.reply({
 		embeds: [
@@ -383,7 +389,7 @@ async function handleVerificationChannels(interaction: ChatInputCommandInteracti
 		});
 	}
 
-	await db.upsertGuildConfig(interaction.guildId, {
+	db.upsertGuildConfig(interaction.guildId, {
 		verify_channel_id: verifyChannel.id,
 		review_channel_id: reviewChannel.id,
 	});
@@ -412,6 +418,13 @@ async function handleVerificationRoles(interaction: ChatInputCommandInteraction)
 	}
 
 	const botMember = interaction.guild?.members.me;
+	if (!botMember) {
+		return interaction.reply({
+			embeds: [errorEmbed('Unable to resolve my own permissions.')],
+			flags: [MessageFlags.Ephemeral],
+		});
+	}
+
 	if (!botMember.permissions.has(PermissionFlagsBits.ManageRoles)) {
 		return interaction.reply({
 			embeds: [errorEmbed('I need the **Manage Roles** permission to manage verification roles.')],
@@ -429,7 +442,7 @@ async function handleVerificationRoles(interaction: ChatInputCommandInteraction)
 		});
 	}
 
-	await db.upsertGuildConfig(interaction.guildId, {
+	db.upsertGuildConfig(interaction.guildId, {
 		verified_role_id: verifiedRole.id,
 		unverified_role_id: unverifiedRole.id,
 	});
@@ -481,7 +494,7 @@ async function handleVerificationRules(interaction: ChatInputCommandInteraction)
 
 	const config = db.getGuildConfig(interaction.guildId);
 
-	await db.upsertGuildConfig(interaction.guildId, {
+	db.upsertGuildConfig(interaction.guildId, {
 		verification_min_account_age_hours: minAgeHours ?? config.verification_min_account_age_hours,
 		verification_max_attempts: maxAttempts ?? config.verification_max_attempts,
 	});
@@ -568,20 +581,10 @@ async function handleVerificationPanel(interaction: ChatInputCommandInteraction)
 async function handleReset(interaction: ChatInputCommandInteraction): Promise<void> {
 	if (!interaction.guildId) return;
 
-	await db.deleteGuildConfig(interaction.guildId);
-	await db.upsertGuildConfig(interaction.guildId, {});
+	db.deleteGuildConfig(interaction.guildId);
+	db.upsertGuildConfig(interaction.guildId, {});
 
 	await interaction.reply({
 		embeds: [successEmbed('Configuration Reset', 'All settings have been reset to defaults.')],
 	});
-}
-
-function formatMs(ms: number): string {
-	const seconds = Math.floor(ms / 1000);
-	if (seconds < 60) return `${seconds}s`;
-	const minutes = Math.floor(seconds / 60);
-	if (minutes < 60) return `${minutes}m`;
-	const hours = Math.floor(minutes / 60);
-	if (hours < 24) return `${hours}h`;
-	return `${Math.floor(hours / 24)}d`;
 }
