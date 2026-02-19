@@ -1,10 +1,11 @@
-import { EmbedBuilder } from 'discord.js';
+import type { EmbedBuilder, User } from 'discord.js';
+import { EmbedBuilder as EmbedBuilderImpl } from 'discord.js';
 import { BOT_VERSION, Colors } from '../config/constants.js';
 
 const FOOTER = { text: `Zentrynel v${BOT_VERSION} — Built by Waren Gonzaga (WG Tech Labs)` };
 
-export function successEmbed(title, description) {
-	return new EmbedBuilder()
+export function successEmbed(title: string, description: string): EmbedBuilder {
+	return new EmbedBuilderImpl()
 		.setColor(Colors.INFO)
 		.setTitle(title)
 		.setDescription(description)
@@ -12,8 +13,8 @@ export function successEmbed(title, description) {
 		.setTimestamp();
 }
 
-export function errorEmbed(description) {
-	return new EmbedBuilder()
+export function errorEmbed(description: string): EmbedBuilder {
+	return new EmbedBuilderImpl()
 		.setColor(Colors.ERROR)
 		.setTitle('Error')
 		.setDescription(description)
@@ -21,10 +22,26 @@ export function errorEmbed(description) {
 		.setTimestamp();
 }
 
-export function modActionEmbed({ actionType, targetUser, moderator, reason, duration, extra }) {
-	const color = Colors[actionType] || Colors.INFO;
+interface ModActionEmbedOptions {
+	actionType: string;
+	targetUser: User;
+	moderator: User;
+	reason?: string | null;
+	duration?: string | null;
+	extra?: string | null;
+}
 
-	const embed = new EmbedBuilder()
+export function modActionEmbed({
+	actionType,
+	targetUser,
+	moderator,
+	reason,
+	duration,
+	extra,
+}: ModActionEmbedOptions): EmbedBuilder {
+	const color = (Colors as Record<string, number>)[actionType] ?? Colors.INFO;
+
+	const embed = new EmbedBuilderImpl()
 		.setColor(color)
 		.setTitle(`${actionType}`)
 		.addFields(
@@ -46,10 +63,22 @@ export function modActionEmbed({ actionType, targetUser, moderator, reason, dura
 	return embed;
 }
 
-export function warningListEmbed(targetUser, warnings) {
-	const embed = new EmbedBuilder()
+interface WarnTarget {
+	tag?: string;
+	username?: string;
+}
+
+interface WarnRow {
+	id: number;
+	created_at: string;
+	reason: string;
+	moderator_id: string;
+}
+
+export function warningListEmbed(targetUser: WarnTarget, warnings: WarnRow[]): EmbedBuilder {
+	const embed = new EmbedBuilderImpl()
 		.setColor(Colors.WARN)
-		.setTitle(`Warnings for ${targetUser.tag || targetUser.username}`)
+		.setTitle(`Warnings for ${targetUser.tag ?? targetUser.username}`)
 		.setDescription(`Total active warnings: **${warnings.length}**`)
 		.setFooter(FOOTER)
 		.setTimestamp();

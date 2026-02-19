@@ -1,6 +1,8 @@
+import type { Database } from 'bun:sqlite';
+
 export const CURRENT_VERSION = 2;
 
-export function createTables(database) {
+export function createTables(database: Database): void {
 	database.run(`
 		CREATE TABLE IF NOT EXISTS guild_config (
 			guild_id TEXT PRIMARY KEY,
@@ -102,7 +104,7 @@ export function createTables(database) {
 	}
 }
 
-function ensureGuildConfigColumns(database) {
+function ensureGuildConfigColumns(database: Database): void {
 	const columns = database.query('PRAGMA table_info(guild_config)').all();
 	const names = new Set(columns.map((column) => column.name));
 
@@ -123,7 +125,7 @@ function ensureGuildConfigColumns(database) {
 	}
 }
 
-function ensureVerificationStateColumns(database) {
+function ensureVerificationStateColumns(database: Database): void {
 	const columns = database.query('PRAGMA table_info(verification_state)').all();
 	const names = new Set(columns.map((column) => column.name));
 

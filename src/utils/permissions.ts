@@ -1,4 +1,14 @@
-export function canModerate(interaction, targetMember) {
+import type { ChatInputCommandInteraction, GuildMember } from 'discord.js';
+
+interface ModerateResult {
+	allowed: boolean;
+	reason: string | null;
+}
+
+export function canModerate(
+	interaction: ChatInputCommandInteraction,
+	targetMember: GuildMember,
+): ModerateResult {
 	if (targetMember.id === interaction.client.user.id) {
 		return { allowed: false, reason: 'I cannot moderate myself.' };
 	}
@@ -7,16 +17,19 @@ export function canModerate(interaction, targetMember) {
 		return { allowed: false, reason: 'You cannot moderate yourself.' };
 	}
 
-	if (targetMember.id === interaction.guild.ownerId) {
+	if (targetMember.id === interaction.guild?.ownerId) {
 		return { allowed: false, reason: 'Cannot moderate the server owner.' };
 	}
 
-	const botMember = interaction.guild.members.me;
+	const botMember = interaction.guild?.members.me;
+	if (!botMember) return { allowed: false, reason: 'Unable to resolve my own member.' };
+
 	if (targetMember.roles.highest.position >= botMember.roles.highest.position) {
 		return { allowed: false, reason: 'My role is not high enough to moderate this user.' };
 	}
 
-	if (targetMember.roles.highest.position >= interaction.member.roles.highest.position) {
+	const invokerMember = interaction.member as GuildMember;
+	if (targetMember.roles.highest.position >= invokerMember.roles.highest.position) {
 		return { allowed: false, reason: 'Your role is not high enough to moderate this user.' };
 	}
 
