@@ -7,11 +7,11 @@ import { logger } from '../utils/logger.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-export async function registerCommands() {
+export async function registerCommands(): Promise<void> {
 	const commandsPath = join(__dirname, '..', 'commands');
-	const files = readdirSync(commandsPath).filter((f) => f.endsWith('.js'));
+	const files = readdirSync(commandsPath).filter((f) => f.endsWith('.ts'));
 
-	const commands = [];
+	const commands: unknown[] = [];
 	for (const file of files) {
 		const filePath = join(commandsPath, file);
 		const command = await import(`file://${filePath}`);
@@ -35,10 +35,10 @@ export async function registerCommands() {
 	}
 }
 
-// Allow running as standalone script: bun run src/handlers/commandRegistrar.js
+// Allow running as standalone script: bun run src/handlers/commandRegistrar.ts
 const isMain =
 	import.meta.url === `file://${process.argv[1]}` ||
-	process.argv[1]?.endsWith('commandRegistrar.js');
+	process.argv[1]?.endsWith('commandRegistrar.ts');
 
 if (isMain) {
 	registerCommands().catch((err) => {

@@ -1,13 +1,14 @@
 import { readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import type { Client } from 'discord.js';
 import { logger } from '../utils/logger.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-export async function loadEvents(client) {
+export async function loadEvents(client: Client): Promise<void> {
 	const eventsPath = join(__dirname, '..', 'events');
-	const files = readdirSync(eventsPath).filter((f) => f.endsWith('.js'));
+	const files = readdirSync(eventsPath).filter((f) => f.endsWith('.ts'));
 	let count = 0;
 
 	for (const file of files) {
@@ -20,9 +21,9 @@ export async function loadEvents(client) {
 		}
 
 		if (event.once) {
-			client.once(event.name, (...args) => event.execute(...args, client));
+			client.once(event.name, (...args: unknown[]) => event.execute(...args, client));
 		} else {
-			client.on(event.name, (...args) => event.execute(...args, client));
+			client.on(event.name, (...args: unknown[]) => event.execute(...args, client));
 		}
 
 		count++;

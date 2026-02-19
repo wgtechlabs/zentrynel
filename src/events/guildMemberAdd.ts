@@ -1,3 +1,4 @@
+import type { GuildMember } from 'discord.js';
 import { PermissionFlagsBits } from 'discord.js';
 import { db } from '../db/index.js';
 import { resolveUsedInvite } from '../services/inviteTracker.js';
@@ -6,7 +7,7 @@ import { logger } from '../utils/logger.js';
 export const name = 'guildMemberAdd';
 export const once = false;
 
-export async function execute(member) {
+export async function execute(member: GuildMember): Promise<void> {
 	const config = db.getGuildConfig(member.guild.id);
 	if (!config.verification_enabled || !config.unverified_role_id) return;
 

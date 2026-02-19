@@ -1,3 +1,4 @@
+import type { Client, Interaction } from 'discord.js';
 import { MessageFlags } from 'discord.js';
 import { handleVerificationInteraction } from '../services/verification.js';
 import { logger } from '../utils/logger.js';
@@ -5,7 +6,7 @@ import { logger } from '../utils/logger.js';
 export const name = 'interactionCreate';
 export const once = false;
 
-export async function execute(interaction, client) {
+export async function execute(interaction: Interaction, client: Client): Promise<void> {
 	if (interaction.isButton() || interaction.isModalSubmit()) {
 		try {
 			const handled = await handleVerificationInteraction(interaction);
