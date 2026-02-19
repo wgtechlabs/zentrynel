@@ -398,6 +398,10 @@ async function handleVerificationStart(interaction: ButtonInteraction): Promise<
 			.setCustomId(`verify:answer:${challenge.sessionId}`)
 			.setLabel('Submit Answer')
 			.setStyle(ButtonStyle.Primary),
+		new ButtonBuilder()
+			.setCustomId('verify:start')
+			.setLabel('New Challenge')
+			.setStyle(ButtonStyle.Secondary),
 	);
 
 	await interaction.reply({
