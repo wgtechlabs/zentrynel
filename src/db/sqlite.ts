@@ -238,20 +238,24 @@ export function addWarning(
 	const result = database
 		?.query('INSERT INTO warnings (guild_id, user_id, moderator_id, reason) VALUES (?, ?, ?, ?)')
 		.run(guildId, userId, moderatorId, reason || 'No reason provided');
-	return { id: result.lastInsertRowid };
+	return { id: result?.lastInsertRowid ?? 0 };
 }
 
 export function getWarnings(guildId: string, userId: string, activeOnly = true): Warning[] {
 	if (activeOnly) {
-		return database
-			?.query(
-				'SELECT * FROM warnings WHERE guild_id = ? AND user_id = ? AND active = 1 ORDER BY created_at DESC',
-			)
-			.all(guildId, userId) as Warning[];
+		return (
+			(database
+				?.query(
+					'SELECT * FROM warnings WHERE guild_id = ? AND user_id = ? AND active = 1 ORDER BY created_at DESC',
+				)
+				.all(guildId, userId) as Warning[]) ?? []
+		);
 	}
-	return database
-		?.query('SELECT * FROM warnings WHERE guild_id = ? AND user_id = ? ORDER BY created_at DESC')
-		.all(guildId, userId) as Warning[];
+	return (
+		(database
+			?.query('SELECT * FROM warnings WHERE guild_id = ? AND user_id = ? ORDER BY created_at DESC')
+			.all(guildId, userId) as Warning[]) ?? []
+	);
 }
 
 export function getActiveWarningCount(guildId: string, userId: string): number {
@@ -259,8 +263,8 @@ export function getActiveWarningCount(guildId: string, userId: string): number {
 		?.query(
 			'SELECT COUNT(*) as count FROM warnings WHERE guild_id = ? AND user_id = ? AND active = 1',
 		)
-		.get(guildId, userId) as { count: number };
-	return row.count;
+		.get(guildId, userId) as { count: number } | undefined;
+	return row?.count ?? 0;
 }
 
 export function deactivateWarning(guildId: string, warningId: number): void {
@@ -299,18 +303,22 @@ export function logAction(
 			duration ?? null,
 			metadata ? JSON.stringify(metadata) : null,
 		);
-	return { id: result.lastInsertRowid };
+	return { id: result?.lastInsertRowid ?? 0 };
 }
 
 export function getActions(guildId: string, userId?: string | null, limit = 10): ModAction[] {
 	if (userId) {
-		return database
-			?.query(
-				'SELECT * FROM mod_actions WHERE guild_id = ? AND user_id = ? ORDER BY created_at DESC LIMIT ?',
-			)
-			.all(guildId, userId, limit) as ModAction[];
+		return (
+			(database
+				?.query(
+					'SELECT * FROM mod_actions WHERE guild_id = ? AND user_id = ? ORDER BY created_at DESC LIMIT ?',
+				)
+				.all(guildId, userId, limit) as ModAction[]) ?? []
+		);
 	}
-	return database
-		?.query('SELECT * FROM mod_actions WHERE guild_id = ? ORDER BY created_at DESC LIMIT ?')
-		.all(guildId, limit) as ModAction[];
+	return (
+		(database
+			?.query('SELECT * FROM mod_actions WHERE guild_id = ? ORDER BY created_at DESC LIMIT ?')
+			.all(guildId, limit) as ModAction[]) ?? []
+	);
 }
