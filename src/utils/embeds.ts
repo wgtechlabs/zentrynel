@@ -24,7 +24,7 @@ export function errorEmbed(description: string): EmbedBuilder {
 
 interface ModActionEmbedOptions {
 	actionType: string;
-	targetUser: User;
+	targetUser: User | null;
 	moderator: User;
 	reason?: string | null;
 	duration?: string | null;
@@ -41,11 +41,15 @@ export function modActionEmbed({
 }: ModActionEmbedOptions): EmbedBuilder {
 	const color = (Colors as Record<string, number>)[actionType] ?? Colors.INFO;
 
+	const userField = targetUser
+		? `${targetUser} (${targetUser.id})`
+		: 'N/A (channel-wide action)';
+
 	const embed = new EmbedBuilderImpl()
 		.setColor(color)
 		.setTitle(`${actionType}`)
 		.addFields(
-			{ name: 'User', value: `${targetUser} (${targetUser.id})`, inline: true },
+			{ name: 'User', value: userField, inline: true },
 			{ name: 'Moderator', value: `${moderator} (${moderator.id})`, inline: true },
 			{ name: 'Reason', value: reason || 'No reason provided' },
 		)
@@ -78,7 +82,7 @@ interface WarnRow {
 export function warningListEmbed(targetUser: WarnTarget, warnings: WarnRow[]): EmbedBuilder {
 	const embed = new EmbedBuilderImpl()
 		.setColor(Colors.WARN)
-		.setTitle(`Warnings for ${targetUser.tag ?? targetUser.username}`)
+		.setTitle(`Warnings for ${targetUser.tag ?? targetUser.username ?? 'Unknown user'}`)
 		.setDescription(`Total active warnings: **${warnings.length}**`)
 		.setFooter(FOOTER)
 		.setTimestamp();

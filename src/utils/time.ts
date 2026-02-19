@@ -31,5 +31,10 @@ export function formatDuration(ms: number | null | undefined): string {
 	if (minutes > 0) parts.push(`${minutes} minute${minutes !== 1 ? 's' : ''}`);
 	if (seconds > 0) parts.push(`${seconds} second${seconds !== 1 ? 's' : ''}`);
 
+	if (parts.length === 0) {
+		const milliseconds = ms % (UNITS.s ?? 1000);
+		parts.push(`${milliseconds} millisecond${milliseconds !== 1 ? 's' : ''}`);
+	}
+
 	return parts.join(', ');
 }
