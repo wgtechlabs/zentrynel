@@ -10,7 +10,5 @@ export async function execute(client: Client): Promise<void> {
 	logger.info(`Shard ${shardId} ready. Logged in as ${client.user?.tag}`);
 	logger.info(`Serving ${client.guilds.cache.size} guilds on this shard`);
 
-	for (const guild of client.guilds.cache.values()) {
-		await cacheGuildInvites(guild);
-	}
+	await Promise.allSettled(client.guilds.cache.map((guild) => cacheGuildInvites(guild)));
 }
