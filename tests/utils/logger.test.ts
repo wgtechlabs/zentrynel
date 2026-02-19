@@ -1,77 +1,77 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
+import { LogEngine, LogMode } from '@wgtechlabs/log-engine';
 import { logger } from '../../src/utils/logger.js';
 
 describe('logger', () => {
-	let originalLog: typeof console.log;
-	let originalWarn: typeof console.warn;
-	let originalError: typeof console.error;
-	let captured: { log: unknown[][]; warn: unknown[][]; error: unknown[][] };
+	let captured: { level: string; message: string; data: unknown }[];
 
 	beforeEach(() => {
-		captured = { log: [], warn: [], error: [] };
-		originalLog = console.log;
-		originalWarn = console.warn;
-		originalError = console.error;
-		console.log = (...args) => captured.log.push(args);
-		console.warn = (...args) => captured.warn.push(args);
-		console.error = (...args) => captured.error.push(args);
+		captured = [];
+		LogEngine.configure({
+			mode: LogMode.DEBUG,
+			outputHandler: (level: string, message: string, data: unknown) => {
+				captured.push({ level, message, data });
+			},
+			suppressConsoleOutput: true,
+		});
 	});
 
 	afterEach(() => {
-		console.log = originalLog;
-		console.warn = originalWarn;
-		console.error = originalError;
+		LogEngine.configure({
+			mode: LogMode.DEBUG,
+			outputHandler: undefined as unknown as (level: string, message: string, data: unknown) => void,
+			suppressConsoleOutput: false,
+		});
 	});
 
-	test('info() logs with INFO tag', () => {
+	test('info() logs at INFO level', () => {
 		logger.info('test message');
-		expect(captured.log.length).toBe(1);
-		expect(captured.log[0][0]).toContain('[INFO]');
-		expect(captured.log[0][0]).toContain('test message');
+		expect(captured.length).toBe(1);
+		expect(captured[0].level).toBe('info');
+		expect(captured[0].message).toContain('test message');
+		expect(captured[0].message).toContain('[INFO]');
 	});
 
-	test('warn() logs with WARN tag', () => {
+	test('warn() logs at WARN level', () => {
 		logger.warn('warning message');
-		expect(captured.warn.length).toBe(1);
-		expect(captured.warn[0][0]).toContain('[WARN]');
-		expect(captured.warn[0][0]).toContain('warning message');
+		expect(captured.length).toBe(1);
+		expect(captured[0].level).toBe('warn');
+		expect(captured[0].message).toContain('warning message');
+		expect(captured[0].message).toContain('[WARN]');
 	});
 
-	test('error() logs with ERROR tag', () => {
+	test('error() logs at ERROR level', () => {
 		logger.error('error message');
-		expect(captured.error.length).toBe(1);
-		expect(captured.error[0][0]).toContain('[ERROR]');
-		expect(captured.error[0][0]).toContain('error message');
+		expect(captured.length).toBe(1);
+		expect(captured[0].level).toBe('error');
+		expect(captured[0].message).toContain('error message');
+		expect(captured[0].message).toContain('[ERROR]');
 	});
 
-	test('debug() logs with DEBUG tag in non-production', () => {
-		const originalEnv = process.env.NODE_ENV;
-		process.env.NODE_ENV = 'development';
+	test('debug() logs at DEBUG level', () => {
 		logger.debug('debug message');
-		expect(captured.log.length).toBe(1);
-		expect(captured.log[0][0]).toContain('[DEBUG]');
-		expect(captured.log[0][0]).toContain('debug message');
-		process.env.NODE_ENV = originalEnv;
+		expect(captured.length).toBe(1);
+		expect(captured[0].level).toBe('debug');
+		expect(captured[0].message).toContain('debug message');
+		expect(captured[0].message).toContain('[DEBUG]');
 	});
 
-	test('debug() is silent in production', () => {
-		const originalEnv = process.env.NODE_ENV;
-		process.env.NODE_ENV = 'production';
-		logger.debug('should not appear');
-		expect(captured.log.length).toBe(0);
-		process.env.NODE_ENV = originalEnv;
+	test('extra data is passed through', () => {
+		logger.info('msg', { key: 'value' });
+		expect(captured.length).toBe(1);
+		expect(captured[0].data).toEqual({ key: 'value' });
 	});
 
-	test('log output includes ISO-like timestamp', () => {
-		logger.info('timestamp check');
-		// Timestamp format: YYYY-MM-DD HH:MM:SS.mmm
-		expect(captured.log[0][0]).toMatch(/\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}\]/);
-	});
-
-	test('extra arguments are passed through', () => {
+	test('multiple extra args are passed as array', () => {
 		logger.info('msg', 'extra1', 42);
-		expect(captured.log[0].length).toBe(3);
-		expect(captured.log[0][1]).toBe('extra1');
-		expect(captured.log[0][2]).toBe(42);
+		expect(captured.length).toBe(1);
+		expect(captured[0].data).toEqual(['extra1', 42]);
+	});
+
+	test('all four log methods exist and are callable', () => {
+		expect(typeof logger.info).toBe('function');
+		expect(typeof logger.warn).toBe('function');
+		expect(typeof logger.error).toBe('function');
+		expect(typeof logger.debug).toBe('function');
 	});
 });
