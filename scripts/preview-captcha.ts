@@ -92,6 +92,9 @@ function renderCaptchaImage(text: string): Buffer {
 	// Interference lines drawn BEFORE the answer text so characters render on top
 	// and survive Discord's image compression
 
+	// Interference lines drawn BEFORE the answer text so characters render on top
+	// and survive Discord's image compression
+
 	// Strong bezier interference lines through the text zone
 	const yMinBezier = Math.floor(height * 0.15);
 	const yMaxBezier = Math.max(yMinBezier + 1, Math.floor(height * 0.85));
@@ -102,7 +105,7 @@ function renderCaptchaImage(text: string): Buffer {
 	const wMin55 = Math.floor(width * 0.55);
 	const wMax85 = Math.max(wMin55 + 1, Math.floor(width * 0.85));
 	for (let i = 0; i < 6; i++) {
-		ctx.strokeStyle = `hsla(${randomInt(0, 360)}, 80%, 60%, ${(randomInt(40, 70) / 100).toFixed(2)})`;
+		ctx.strokeStyle = `hsla(${randomInt(0, 360)}, 70%, 55%, ${(randomInt(25, 45) / 100).toFixed(2)})`;
 		ctx.lineWidth = randomInt(2, 4);
 		ctx.beginPath();
 		const yStart = randomInt(yMinBezier, yMaxBezier);
@@ -123,7 +126,7 @@ function renderCaptchaImage(text: string): Buffer {
 	const yMinGrid = Math.floor(height * 0.2);
 	const yMaxGrid = Math.max(yMinGrid + 1, Math.floor(height * 0.8));
 	for (let i = 0; i < 5; i++) {
-		ctx.strokeStyle = `hsla(${randomInt(0, 360)}, 60%, 55%, ${(randomInt(20, 40) / 100).toFixed(2)})`;
+		ctx.strokeStyle = `hsla(${randomInt(0, 360)}, 50%, 50%, ${(randomInt(15, 30) / 100).toFixed(2)})`;
 		ctx.lineWidth = randomInt(1, 3);
 		ctx.beginPath();
 		const y = randomInt(yMinGrid, yMaxGrid);
@@ -161,18 +164,28 @@ function renderCaptchaImage(text: string): Buffer {
 		const charSize = randomInt(28, 49);
 		ctx.font = `${charSize}px monospace`; // NOT bold (decoys are bold)
 
-		// Visible enough to survive Discord compression while still being lighter than decoys
 		const hue = randomInt(0, 360);
-		ctx.fillStyle = `hsla(${hue}, 60%, 65%, 0.70)`;
+
+		// Dark backing behind each character for contrast against noise
+		ctx.shadowColor = `hsla(${hue}, 20%, 10%, 0.6)`;
+		ctx.shadowBlur = 4;
+
+		// Strong enough to survive Discord compression while still lighter than bold decoys
+		ctx.fillStyle = `hsla(${hue}, 55%, 75%, 0.85)`;
 		ctx.textAlign = 'center';
 		ctx.textBaseline = 'middle';
 
 		// Offset shadow/outline for depth confusion
-		ctx.strokeStyle = `hsla(${(hue + 180) % 360}, 40%, 25%, 0.4)`;
+		ctx.strokeStyle = `hsla(${(hue + 180) % 360}, 30%, 20%, 0.5)`;
 		ctx.lineWidth = 2;
 		ctx.strokeText(char, randomInt(-2, 3), randomInt(-2, 3));
 
 		ctx.fillText(char, 0, 0);
+
+		// Reset shadow so it doesn't affect subsequent draws
+		ctx.shadowColor = 'transparent';
+		ctx.shadowBlur = 0;
+
 		ctx.restore();
 		x += charSpacing;
 	}
