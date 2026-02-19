@@ -1,3 +1,10 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+const pkg = JSON.parse(readFileSync(resolve(import.meta.dirname, '../../package.json'), 'utf-8'));
+
+export const BOT_VERSION = pkg.version;
+
 export const Colors = {
 	WARN: 0xffa500,
 	MUTE: 0x3498db,
