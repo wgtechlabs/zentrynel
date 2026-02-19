@@ -10,7 +10,19 @@ export async function execute(interaction: Interaction, client: Client): Promise
 	if (interaction.isButton() || interaction.isModalSubmit()) {
 		try {
 			const handled = await handleVerificationInteraction(interaction);
-			if (handled) return;
+			if (!handled) {
+				// Interaction was not recognized by verification handler
+				const unknownReply = {
+					content: 'This interaction is not recognized.',
+					flags: [MessageFlags.Ephemeral],
+				};
+				if (interaction.replied || interaction.deferred) {
+					await interaction.followUp(unknownReply);
+				} else {
+					await interaction.reply(unknownReply);
+				}
+			}
+			return;
 		} catch (error) {
 			logger.error(`Error handling component interaction ${interaction.customId}:`, error);
 			const reply = {

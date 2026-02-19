@@ -7,7 +7,11 @@ export const name = 'guildDelete';
 export const once = false;
 
 export async function execute(guild: Guild): Promise<void> {
-	db.deleteGuildConfig(guild.id);
-	clearGuildCache(guild.id);
+	try {
+		db.deleteGuildConfig(guild.id);
+		clearGuildCache(guild.id);
+	} catch (err) {
+		logger.error(`Failed to clean up data for guild ${guild.id}:`, err);
+	}
 	logger.info(`Removed from guild: ${guild.name} (${guild.id})`);
 }

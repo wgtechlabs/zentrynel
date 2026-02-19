@@ -44,17 +44,23 @@ export async function execute(member: GuildMember): Promise<void> {
 	}
 
 	if (!member.roles.cache.has(unverifiedRole.id)) {
-		await member.roles
-			.add(unverifiedRole, 'Auto-assign unverified role on join')
-			.catch((err) =>
-				logger.error(
-					`Failed to auto-assign unverified role to ${member.id} in guild ${member.guild.id}:`,
-					err.message,
-				),
+		try {
+			await member.roles.add(unverifiedRole, 'Auto-assign unverified role on join');
+		} catch (err) {
+			logger.error(
+				`Failed to auto-assign unverified role to ${member.id} in guild ${member.guild.id}:`,
+				(err as Error).message,
 			);
+			return;
+		}
 	}
 
-	const inviteCode = await resolveUsedInvite(member.guild);
+	let inviteCode: string | null = null;
+	try {
+		inviteCode = await resolveUsedInvite(member.guild);
+	} catch (err) {
+		logger.error(`Failed to resolve invite for member ${member.id} in guild ${member.guild.id}:`, err);
+	}
 
 	db.upsertVerificationState(member.guild.id, member.id, {
 		status: 'PENDING',

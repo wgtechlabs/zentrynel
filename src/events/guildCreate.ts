@@ -7,7 +7,11 @@ export const name = 'guildCreate';
 export const once = false;
 
 export async function execute(guild: Guild): Promise<void> {
-	db.upsertGuildConfig(guild.id, {});
+	try {
+		db.upsertGuildConfig(guild.id, {});
+	} catch (err) {
+		logger.error(`Failed to upsert guild config for ${guild.id}:`, err);
+	}
 	await cacheGuildInvites(guild);
 	logger.info(`Joined guild: ${guild.name} (${guild.id})`);
 }
