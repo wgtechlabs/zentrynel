@@ -12,10 +12,6 @@ import {
 	TextInputBuilder,
 	TextInputStyle,
 } from 'discord.js';
-import { ActionTypes, BOT_VERSION, Colors } from '../config/constants.js';
-import { db } from '../db/index.js';
-import { logger } from '../utils/logger.js';
-import { send as sendModLog } from './modLog.js';
 import type {
 	ActionRow,
 	ButtonComponent,
@@ -25,7 +21,11 @@ import type {
 	Interaction,
 	ModalSubmitInteraction,
 } from 'discord.js';
+import { ActionTypes, BOT_VERSION, Colors } from '../config/constants.js';
+import { db } from '../db/index.js';
 import type { GuildConfig, VerificationState } from '../types.js';
+import { logger } from '../utils/logger.js';
+import { send as sendModLog } from './modLog.js';
 
 interface ChallengeSession {
 	guildId: string;
@@ -47,9 +47,9 @@ const OPERATORS: { symbol: string; fn: (a: number, b: number) => number }[] = [
 ];
 
 function generateCaptcha(): { text: string; answer: string } {
-	const op = OPERATORS[randomInt(OPERATORS.length)]!;
-	let a;
-	let b;
+	const op = OPERATORS[randomInt(OPERATORS.length)] as NonNullable<(typeof OPERATORS)[number]>;
+	let a: number;
+	let b: number;
 	if (op.symbol === '−') {
 		a = randomInt(10, 99);
 		b = randomInt(1, a);
@@ -339,7 +339,10 @@ async function showAnswerModal(interaction: ButtonInteraction, sessionId: string
 	await interaction.showModal(modal);
 }
 
-async function handleChallengeAnswer(interaction: ModalSubmitInteraction, sessionId: string): Promise<void> {
+async function handleChallengeAnswer(
+	interaction: ModalSubmitInteraction,
+	sessionId: string,
+): Promise<void> {
 	const session = challengeSessions.get(sessionId);
 	if (!session) {
 		await interaction.reply({
@@ -451,20 +454,25 @@ function generateFakeDates(realDate: Date, count: number): string[] {
 	return [...fakes];
 }
 
-function createContextChallenge(guildId: string, userId: string, member: GuildMember, verificationState: VerificationState | null): { sessionId: string; lines: string[]; hint: string } {
+function createContextChallenge(
+	guildId: string,
+	userId: string,
+	member: GuildMember,
+	verificationState: VerificationState | null,
+): { sessionId: string; lines: string[]; hint: string } {
 	const questionTypes = ['server_join', 'account_created'];
 	if (verificationState?.invite_code) {
 		questionTypes.push('invite_code');
 	}
 
-	const type = questionTypes[randomInt(questionTypes.length)]!;
+	const type = questionTypes[randomInt(questionTypes.length)] as string;
 	const sessionId = randomUUID().split('-')[0];
-	let lines;
-	let answer;
-	let hint;
+	let lines: string[];
+	let answer: string;
+	let hint: string;
 
 	if (type === 'server_join') {
-		const joinDate = member.joinedAt!;
+		const joinDate = member.joinedAt ?? new Date();
 		const correct = formatDate(joinDate);
 		const fakes = generateFakeDates(joinDate, 3);
 		const answerPos = randomInt(4);
@@ -488,7 +496,7 @@ function createContextChallenge(guildId: string, userId: string, member: GuildMe
 		];
 		hint = 'Type the **number** (1–4) of the correct date.';
 	} else {
-		answer = verificationState!.invite_code!
+		answer = verificationState?.invite_code ?? '';
 		lines = ['What invite code did you use', 'to join this server?'];
 		hint = 'Type the **exact invite code** (e.g. `aBcDeFg`).';
 	}
@@ -619,7 +627,10 @@ async function showContextModal(interaction: ButtonInteraction, sessionId: strin
 	await interaction.showModal(modal);
 }
 
-async function handleContextAnswer(interaction: ModalSubmitInteraction, sessionId: string): Promise<void> {
+async function handleContextAnswer(
+	interaction: ModalSubmitInteraction,
+	sessionId: string,
+): Promise<void> {
 	const session = challengeSessions.get(sessionId);
 	if (!session) {
 		await interaction.reply({
@@ -729,7 +740,11 @@ async function handleContextAnswer(interaction: ModalSubmitInteraction, sessionI
 	});
 }
 
-async function handleManualReviewAction(interaction: ButtonInteraction, decision: string, userId: string): Promise<void> {
+async function handleManualReviewAction(
+	interaction: ButtonInteraction,
+	decision: string,
+	userId: string,
+): Promise<void> {
 	if (!interaction.inGuild()) {
 		await interaction.reply({
 			content: 'Manual verification actions can only be used in server channels.',
@@ -888,7 +903,10 @@ async function handleManualReviewAction(interaction: ButtonInteraction, decision
 	});
 }
 
-function createChallenge(guildId: string, userId: string): { sessionId: string; captchaText: string } {
+function createChallenge(
+	guildId: string,
+	userId: string,
+): { sessionId: string; captchaText: string } {
 	const captcha = generateCaptcha();
 	const sessionId = randomUUID().split('-')[0];
 
@@ -905,7 +923,10 @@ function createChallenge(guildId: string, userId: string): { sessionId: string; 
 	};
 }
 
-function evaluateRisk(member: GuildMember, minAccountAgeHours: number): { score: number; manualRequired: boolean; reasons: string[] } {
+function evaluateRisk(
+	member: GuildMember,
+	minAccountAgeHours: number,
+): { score: number; manualRequired: boolean; reasons: string[] } {
 	const reasons: string[] = [];
 	let score = 0;
 
@@ -945,7 +966,10 @@ function evaluateRisk(member: GuildMember, minAccountAgeHours: number): { score:
 	};
 }
 
-async function registerFailedAttempt(interaction: ModalSubmitInteraction | ButtonInteraction, detail: string): Promise<{ manualReview: boolean; queueError: string | null }> {
+async function registerFailedAttempt(
+	interaction: ModalSubmitInteraction | ButtonInteraction,
+	detail: string,
+): Promise<{ manualReview: boolean; queueError: string | null }> {
 	const config = db.getGuildConfig(interaction.guildId);
 	const state = db.getVerificationState(interaction.guildId, interaction.user.id);
 	const attempts = Number(state?.attempts || 0) + 1;
@@ -978,7 +1002,16 @@ async function registerFailedAttempt(interaction: ModalSubmitInteraction | Butto
 	return { manualReview: false, queueError: null };
 }
 
-async function queueManualReview(guild: Guild, member: GuildMember, config: GuildConfig, { reasons, riskScore, triggeredBy }: { reasons: string[]; riskScore: number; triggeredBy: { toString(): string } | null }): Promise<{ queued: boolean; error?: string; existing?: boolean }> {
+async function queueManualReview(
+	guild: Guild,
+	member: GuildMember,
+	config: GuildConfig,
+	{
+		reasons,
+		riskScore,
+		triggeredBy,
+	}: { reasons: string[]; riskScore: number; triggeredBy: { toString(): string } | null },
+): Promise<{ queued: boolean; error?: string; existing?: boolean }> {
 	if (!config.review_channel_id) {
 		logger.warn(`Review channel not configured for guild ${guild.id}`);
 		return { queued: false, error: 'Review channel is not configured by admins.' };
@@ -1071,7 +1104,11 @@ async function queueManualReview(guild: Guild, member: GuildMember, config: Guil
 	return { queued: true, existing: false };
 }
 
-async function applyVerifiedRoles(member: GuildMember, config: GuildConfig, reason: string): Promise<{ ok: boolean; error?: string }> {
+async function applyVerifiedRoles(
+	member: GuildMember,
+	config: GuildConfig,
+	reason: string,
+): Promise<{ ok: boolean; error?: string }> {
 	if (!config.verified_role_id || !config.unverified_role_id) {
 		return {
 			ok: false,
@@ -1124,7 +1161,11 @@ async function applyVerifiedRoles(member: GuildMember, config: GuildConfig, reas
 	return { ok: true };
 }
 
-async function applyUnverifiedRoles(member: GuildMember, config: GuildConfig, reason: string): Promise<{ ok: boolean; error?: string }> {
+async function applyUnverifiedRoles(
+	member: GuildMember,
+	config: GuildConfig,
+	reason: string,
+): Promise<{ ok: boolean; error?: string }> {
 	if (!config.unverified_role_id || !config.verified_role_id) {
 		return {
 			ok: false,
@@ -1192,7 +1233,11 @@ function getAccountAgeHours(createdTimestamp: number): number {
 	return Math.floor((Date.now() - createdTimestamp) / (1000 * 60 * 60));
 }
 
-function buildManualReviewResultEmbed(interaction: ButtonInteraction, actionType: string, message: string): EmbedBuilder {
+function buildManualReviewResultEmbed(
+	interaction: ButtonInteraction,
+	actionType: string,
+	message: string,
+): EmbedBuilder {
 	const baseEmbed = interaction.message.embeds[0]
 		? EmbedBuilder.from(interaction.message.embeds[0])
 		: new EmbedBuilder().setTitle('Manual Verification');

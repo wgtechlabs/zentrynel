@@ -1,12 +1,24 @@
+import type { ChatInputCommandInteraction, User } from 'discord.js';
 import { ActionTypes } from '../config/constants.js';
 import { db } from '../db/index.js';
 import { logger } from '../utils/logger.js';
 import { formatDuration } from '../utils/time.js';
 import { send as sendModLog } from './modLog.js';
 
-export async function checkEscalation(interaction, targetUser, warningCount) {
-	const config = await db.getGuildConfig(interaction.guildId);
-	const targetMember = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
+interface EscalationResult {
+	escalated: boolean;
+	action: string | null;
+}
+
+export async function checkEscalation(
+	interaction: ChatInputCommandInteraction,
+	targetUser: User,
+	warningCount: number,
+): Promise<EscalationResult> {
+	if (!interaction.guildId || !interaction.guild) return { escalated: false, action: null };
+
+	const config = db.getGuildConfig(interaction.guildId);
+	const targetMember = await interaction.guild?.members.fetch(targetUser.id).catch(() => null);
 
 	if (!targetMember) {
 		return { escalated: false, action: null };
@@ -16,11 +28,11 @@ export async function checkEscalation(interaction, targetUser, warningCount) {
 		try {
 			await targetUser
 				.send(
-					`You have been banned from **${interaction.guild.name}** for reaching ${warningCount} warnings.`,
+					`You have been banned from **${interaction.guild?.name}** for reaching ${warningCount} warnings.`,
 				)
 				.catch(() => {});
 
-			await interaction.guild.members.ban(targetUser, {
+			await interaction.guild?.members.ban(targetUser, {
 				reason: `Automatic ban: reached ${warningCount} warnings`,
 			});
 
@@ -30,8 +42,6 @@ export async function checkEscalation(interaction, targetUser, warningCount) {
 				targetUser.id,
 				interaction.client.user.id,
 				`Automatic: ${warningCount} warnings reached`,
-				null,
-				null,
 			);
 
 			await sendModLog(interaction.guild, {
@@ -43,13 +53,13 @@ export async function checkEscalation(interaction, targetUser, warningCount) {
 
 			return { escalated: true, action: ActionTypes.BAN };
 		} catch (err) {
-			logger.error(`Auto-ban failed for ${targetUser.id}:`, err.message);
+			logger.error(`Auto-ban failed for ${targetUser.id}:`, (err as Error).message);
 		}
 	} else if (warningCount >= config.warn_threshold_kick) {
 		try {
 			await targetUser
 				.send(
-					`You have been kicked from **${interaction.guild.name}** for reaching ${warningCount} warnings.`,
+					`You have been kicked from **${interaction.guild?.name}** for reaching ${warningCount} warnings.`,
 				)
 				.catch(() => {});
 
@@ -61,8 +71,6 @@ export async function checkEscalation(interaction, targetUser, warningCount) {
 				targetUser.id,
 				interaction.client.user.id,
 				`Automatic: ${warningCount} warnings reached`,
-				null,
-				null,
 			);
 
 			await sendModLog(interaction.guild, {
@@ -74,7 +82,7 @@ export async function checkEscalation(interaction, targetUser, warningCount) {
 
 			return { escalated: true, action: ActionTypes.KICK };
 		} catch (err) {
-			logger.error(`Auto-kick failed for ${targetUser.id}:`, err.message);
+			logger.error(`Auto-kick failed for ${targetUser.id}:`, (err as Error).message);
 		}
 	} else if (warningCount >= config.warn_threshold_mute) {
 		try {
@@ -89,7 +97,6 @@ export async function checkEscalation(interaction, targetUser, warningCount) {
 				interaction.client.user.id,
 				`Automatic: ${warningCount} warnings reached`,
 				duration,
-				null,
 			);
 
 			await sendModLog(interaction.guild, {
@@ -102,7 +109,7 @@ export async function checkEscalation(interaction, targetUser, warningCount) {
 
 			return { escalated: true, action: ActionTypes.MUTE };
 		} catch (err) {
-			logger.error(`Auto-mute failed for ${targetUser.id}:`, err.message);
+			logger.error(`Auto-mute failed for ${targetUser.id}:`, (err as Error).message);
 		}
 	}
 
