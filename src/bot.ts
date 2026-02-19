@@ -27,3 +27,13 @@ await loadEvents(client);
 await registerCommands();
 
 await client.login(env.DISCORD_TOKEN);
+
+function shutdown(): void {
+	logger.info('Shutting down...');
+	client.destroy();
+	db.close();
+	process.exit(0);
+}
+
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
