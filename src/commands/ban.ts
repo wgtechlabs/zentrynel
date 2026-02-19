@@ -55,9 +55,6 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 		}
 	}
 
-	await targetUser
-		.send(`You have been banned from **${interaction.guild?.name}**.\n**Reason:** ${reason}`)
-		.catch(() => {});
 
 	await interaction.guild?.members.ban(targetUser, {
 		reason,
