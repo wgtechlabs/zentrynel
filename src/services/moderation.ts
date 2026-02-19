@@ -8,6 +8,7 @@ import { send as sendModLog } from './modLog.js';
 interface EscalationResult {
 	escalated: boolean;
 	action: string | null;
+	error?: string;
 }
 
 export async function checkEscalation(
@@ -54,6 +55,7 @@ export async function checkEscalation(
 			return { escalated: true, action: ActionTypes.BAN };
 		} catch (err) {
 			logger.error(`Auto-ban failed for ${targetUser.id}:`, (err as Error).message);
+			return { escalated: false, action: ActionTypes.BAN, error: (err as Error).message };
 		}
 	} else if (warningCount >= config.warn_threshold_kick) {
 		try {
@@ -83,10 +85,17 @@ export async function checkEscalation(
 			return { escalated: true, action: ActionTypes.KICK };
 		} catch (err) {
 			logger.error(`Auto-kick failed for ${targetUser.id}:`, (err as Error).message);
+			return { escalated: false, action: ActionTypes.KICK, error: (err as Error).message };
 		}
 	} else if (warningCount >= config.warn_threshold_mute) {
 		try {
 			const duration = config.mute_duration_default;
+
+			await targetUser
+				.send(
+					`You have been muted in **${interaction.guild?.name}** for ${formatDuration(duration)} for reaching ${warningCount} warnings.`,
+				)
+				.catch(() => {});
 
 			await targetMember.timeout(duration, `Automatic mute: reached ${warningCount} warnings`);
 
@@ -110,6 +119,7 @@ export async function checkEscalation(
 			return { escalated: true, action: ActionTypes.MUTE };
 		} catch (err) {
 			logger.error(`Auto-mute failed for ${targetUser.id}:`, (err as Error).message);
+			return { escalated: false, action: ActionTypes.MUTE, error: (err as Error).message };
 		}
 	}
 

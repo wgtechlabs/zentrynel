@@ -106,6 +106,12 @@ export async function resolveUsedInvite(guild: Guild): Promise<string | null> {
 	});
 }
 
+/**
+ * Clears cached invite data for a guild. Intended for guild-leave cleanup.
+ * Note: This may race with in-flight resolveUsedInvite or cacheGuildInvites calls
+ * since it does not acquire the per-guild lock. This is acceptable because after
+ * a guild-leave event no further invite operations should be dispatched for that guild.
+ */
 export function clearGuildCache(guildId: string): void {
 	inviteCache.delete(guildId);
 	guildLocks.delete(guildId);

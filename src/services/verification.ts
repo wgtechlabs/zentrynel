@@ -374,7 +374,7 @@ async function handleVerificationStart(interaction: ButtonInteraction): Promise<
 		.setColor(Colors.INFO)
 		.setTitle('Verification Challenge')
 		.setDescription(
-			'Type the characters in the middle of the image below and click **Submit Answer** to enter your answer.\n\nThis challenge expires in 5 minutes.',
+			'Look for the **thin, lighter characters** running across the center of the image. Ignore the **bold characters** near the edges — those are decoys.\n\nClick **Submit Answer** to enter the code.\n\nThis challenge expires in 5 minutes.',
 		)
 		.setImage('attachment://captcha.png')
 		.setFooter(FOOTER)
@@ -420,7 +420,7 @@ async function showAnswerModal(interaction: ButtonInteraction, sessionId: string
 
 	const answerInput = new TextInputBuilder()
 		.setCustomId('answer')
-		.setLabel('Type the characters in the middle of the image')
+		.setLabel('Type the thin characters from the center')
 		.setStyle(TextInputStyle.Short)
 		.setPlaceholder('e.g. ACDF7K')
 		.setRequired(true)
@@ -769,8 +769,20 @@ async function handleContextAnswer(
 	}
 
 	// Both phases passed — verify the member
-	const config = db.getGuildConfig(interaction.guildId);
-	const member = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
+	const config = db.getGuildConfig(interaction.guildId!);
+	const ctxGuild =
+		interaction.guild ??
+		(interaction.guildId
+			? await interaction.client.guilds.fetch(interaction.guildId).catch(() => null)
+			: null);
+	if (!ctxGuild) {
+		await interaction.reply({
+			content: 'Unable to resolve the server. Please try again.',
+			flags: [MessageFlags.Ephemeral],
+		});
+		return;
+	}
+	const member = await ctxGuild.members.fetch(interaction.user.id).catch(() => null);
 	if (!member) {
 		await interaction.reply({
 			content: 'Unable to load your server membership. Please try again.',
@@ -785,7 +797,7 @@ async function handleContextAnswer(
 		`Automated verification approved by ${interaction.user.tag}`,
 	);
 	if (!roleResult.ok) {
-		const queued = await queueManualReview(interaction.guild, member, config, {
+		const queued = await queueManualReview(ctxGuild, member, config, {
 			reasons: [roleResult.error],
 			riskScore: 0,
 			triggeredBy: interaction.user,
@@ -799,7 +811,7 @@ async function handleContextAnswer(
 		return;
 	}
 
-	db.upsertVerificationState(interaction.guildId, interaction.user.id, {
+	db.upsertVerificationState(interaction.guildId!, interaction.user.id, {
 		status: 'VERIFIED',
 		attempts: 0,
 		manual_required: 0,
@@ -809,7 +821,7 @@ async function handleContextAnswer(
 	});
 
 	db.logAction(
-		interaction.guildId,
+		interaction.guildId!,
 		ActionTypes.VERIFY_APPROVE,
 		interaction.user.id,
 		interaction.client.user.id,
@@ -818,7 +830,7 @@ async function handleContextAnswer(
 		{ mode: 'automatic' },
 	);
 
-	await sendModLog(interaction.guild, {
+	await sendModLog(ctxGuild, {
 		actionType: ActionTypes.VERIFY_APPROVE,
 		targetUser: interaction.user,
 		moderator: interaction.client.user,

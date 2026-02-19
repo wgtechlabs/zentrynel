@@ -5,7 +5,7 @@ import { logger } from '../utils/logger.js';
 
 interface ModLogOptions {
 	actionType: string;
-	targetUser: User;
+	targetUser: User | null;
 	moderator: User;
 	reason?: string | null;
 	duration?: string | null;
@@ -14,8 +14,7 @@ interface ModLogOptions {
 
 export async function send(guild: Guild, options: ModLogOptions): Promise<void> {
 	const config = db.getGuildConfig(guild.id);
-
-	if (!config.log_channel_id) return;
+	if (!config?.log_channel_id) return;
 
 	const channel =
 		(guild.channels.cache.get(config.log_channel_id) as TextChannel | undefined) ??
