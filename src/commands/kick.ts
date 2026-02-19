@@ -50,9 +50,6 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 		});
 	}
 
-	await targetUser
-		.send(`You have been kicked from **${interaction.guild?.name}**.\n**Reason:** ${reason}`)
-		.catch(() => {});
 
 	await targetMember.kick(reason);
 
