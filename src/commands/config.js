@@ -8,10 +8,12 @@ import {
 	PermissionFlagsBits,
 	SlashCommandBuilder,
 } from 'discord.js';
-import { Colors } from '../config/constants.js';
+import { BOT_VERSION, Colors } from '../config/constants.js';
 import { db } from '../db/index.js';
 import { errorEmbed, successEmbed } from '../utils/embeds.js';
 import { formatDuration, parseDuration } from '../utils/time.js';
+
+const FOOTER = { text: `Zentrynel v${BOT_VERSION} — Built by Waren Gonzaga (WG Tech Labs)` };
 
 export const data = new SlashCommandBuilder()
 	.setName('config')
@@ -233,6 +235,7 @@ async function handleView(interaction) {
 				inline: true,
 			},
 		)
+		.setFooter(FOOTER)
 		.setTimestamp();
 
 	await interaction.reply({ embeds: [embed] });
@@ -519,6 +522,7 @@ async function handleVerificationPanel(interaction) {
 		.setDescription(
 			'Click the button below to start verification.\n\nIf automated checks fail, your request is queued for manual moderator review.',
 		)
+		.setFooter(FOOTER)
 		.setTimestamp();
 
 	const row = new ActionRowBuilder().addComponents(
