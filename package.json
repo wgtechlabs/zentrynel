@@ -13,7 +13,8 @@
 		"lint": "bunx biome check .",
 		"lint:fix": "bunx biome check --write .",
 		"format": "bunx biome format --write .",
-		"test": "bun test"
+		"test": "bun test",
+		"preview:captcha": "bun run scripts/preview-captcha.ts"
 	},
 	"author": "Waren Gonzaga",
 	"license": "GPL-3.0",
