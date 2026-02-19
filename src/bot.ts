@@ -4,6 +4,7 @@ import { db } from './db/index.js';
 import { loadCommands } from './handlers/commandLoader.js';
 import { registerCommands } from './handlers/commandRegistrar.js';
 import { loadEvents } from './handlers/eventLoader.js';
+import type { Command } from './types.js';
 import { logger } from './utils/logger.js';
 
 const client = new Client({
@@ -17,7 +18,7 @@ const client = new Client({
 	],
 });
 
-client.commands = new Collection();
+client.commands = new Collection<string, Command>();
 
 db.initialize();
 
