@@ -29,7 +29,10 @@ export async function execute(interaction) {
 
 	const check = canModerate(interaction, targetMember);
 	if (!check.allowed) {
-		return interaction.reply({ embeds: [errorEmbed(check.reason)], flags: [MessageFlags.Ephemeral] });
+		return interaction.reply({
+			embeds: [errorEmbed(check.reason)],
+			flags: [MessageFlags.Ephemeral],
+		});
 	}
 
 	const { id } = await db.addWarning(

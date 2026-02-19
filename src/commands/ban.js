@@ -31,7 +31,10 @@ export async function execute(interaction) {
 	if (targetMember) {
 		const check = canModerate(interaction, targetMember);
 		if (!check.allowed) {
-			return interaction.reply({ embeds: [errorEmbed(check.reason)], flags: [MessageFlags.Ephemeral] });
+			return interaction.reply({
+				embeds: [errorEmbed(check.reason)],
+				flags: [MessageFlags.Ephemeral],
+			});
 		}
 
 		if (!targetMember.bannable) {

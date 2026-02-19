@@ -1,27 +1,27 @@
 {
-  "name": "zentrynel",
-  "version": "0.2.4",
-  "description": "Discord moderation bot with escalating strike system, built with Bun and discord.js v14.",
-  "type": "module",
-  "main": "src/index.js",
-  "scripts": {
-    "start": "bun run src/index.js",
-    "dev": "bun --watch run src/bot.js",
-    "bot": "bun run src/bot.js",
-    "register": "bun run src/handlers/commandRegistrar.js",
-    "lint": "bunx biome check .",
-    "lint:fix": "bunx biome check --write .",
-    "format": "bunx biome format --write ."
-  },
-  "author": "Waren Gonzaga",
-  "license": "GPL-3.0",
-  "engines": {
-    "bun": ">=1.0.0"
-  },
-  "dependencies": {
-    "discord.js": "^14.18.0"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "^1.9.4"
-  }
+	"name": "zentrynel",
+	"version": "0.2.4",
+	"description": "Discord moderation bot with escalating strike system, built with Bun and discord.js v14.",
+	"type": "module",
+	"main": "src/index.js",
+	"scripts": {
+		"start": "bun run src/index.js",
+		"dev": "bun --watch run src/bot.js",
+		"bot": "bun run src/bot.js",
+		"register": "bun run src/handlers/commandRegistrar.js",
+		"lint": "bunx biome check .",
+		"lint:fix": "bunx biome check --write .",
+		"format": "bunx biome format --write ."
+	},
+	"author": "Waren Gonzaga",
+	"license": "GPL-3.0",
+	"engines": {
+		"bun": ">=1.0.0"
+	},
+	"dependencies": {
+		"discord.js": "^14.18.0"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^1.9.4"
+	}
 }
