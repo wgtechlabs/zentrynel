@@ -67,7 +67,7 @@ bun run dev
 | `/config verificationenable <enabled>` | Administrator | Enable/disable member verification |
 | `/config verificationchannels <verify> <review>` | Administrator | Set verify and review channels |
 | `/config verificationroles <verified> <unverified>` | Administrator | Set verified/unverified roles |
-| `/config verificationrules [minage] [maxattempts]` | Administrator | Set account-age and retry rules |
+| `/config verificationrules [minage] [maxattempts]` | Administrator | Set account-age (e.g. 24h, 2d) and retry rules |
 | `/config verificationpanel` | Administrator | Post verification button panel |
 | `/config reset` | Administrator | Reset to defaults |
 
