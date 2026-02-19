@@ -34,34 +34,35 @@ interface ChallengeSession {
 	answer: string;
 	phase?: string;
 	expiresAt: number;
+	createdAt: number;
 }
 
 const CHALLENGE_TTL_MS = 5 * 60 * 1000;
+const MIN_SOLVE_TIME_MS = 3_000;
 const challengeSessions = new Map<string, ChallengeSession>();
 
-const OPERATORS: { symbol: string; fn: (a: number, b: number) => number }[] = [
-	{ symbol: '+', fn: (a, b) => a + b },
-	{ symbol: '−', fn: (a, b) => a - b },
-	{ symbol: '×', fn: (a, b) => a * b },
-];
+/** Builds a single-button action row that re-triggers verification */
+function retryRow(): ActionRowBuilder<ButtonBuilder> {
+	return new ActionRowBuilder<ButtonBuilder>().addComponents(
+		new ButtonBuilder()
+			.setCustomId('verify:start')
+			.setLabel('Retry Verification')
+			.setStyle(ButtonStyle.Secondary),
+	);
+}
+
+// Unambiguous characters — excludes 0/O, 1/I/l, 5/S, 8/B, 2/Z to reduce OCR confusion with distortion
+const CAPTCHA_CHARS = 'ACDEFGHJKMNPQRTUVWXY3467';
+const CAPTCHA_LENGTH_MIN = 5;
+const CAPTCHA_LENGTH_MAX = 7;
 
 function generateCaptcha(): { text: string; answer: string } {
-	const op = OPERATORS[randomInt(OPERATORS.length)] as NonNullable<(typeof OPERATORS)[number]>;
-	let a: number;
-	let b: number;
-	if (op.symbol === '−') {
-		a = randomInt(10, 99);
-		b = randomInt(1, a);
-	} else if (op.symbol === '×') {
-		a = randomInt(2, 12);
-		b = randomInt(2, 12);
-	} else {
-		a = randomInt(2, 50);
-		b = randomInt(2, 50);
+	const length = randomInt(CAPTCHA_LENGTH_MIN, CAPTCHA_LENGTH_MAX);
+	let text = '';
+	for (let i = 0; i < length; i++) {
+		text += CAPTCHA_CHARS[randomInt(CAPTCHA_CHARS.length)];
 	}
-	const answer = op.fn(a, b);
-	const text = `${a} ${op.symbol} ${b} = ?`;
-	return { text, answer: String(answer) };
+	return { text, answer: text };
 }
 
 /**
@@ -79,8 +80,8 @@ function paintCanvasNoise(
 	ctx.fillRect(0, 0, width, height);
 
 	for (let i = 0; i < lineCount; i++) {
-		ctx.strokeStyle = `hsla(${randomInt(0, 360)}, 50%, 50%, 0.4)`;
-		ctx.lineWidth = randomInt(1, 3);
+		ctx.strokeStyle = `hsla(${randomInt(0, 360)}, 50%, 50%, 0.25)`;
+		ctx.lineWidth = randomInt(1, 2);
 		ctx.beginPath();
 		ctx.moveTo(randomInt(0, width), randomInt(0, height));
 		ctx.bezierCurveTo(
@@ -95,49 +96,114 @@ function paintCanvasNoise(
 	}
 
 	for (let i = 0; i < dotCount; i++) {
-		ctx.fillStyle = `hsla(${randomInt(0, 360)}, 40%, 60%, ${(randomInt(20, 60) / 100).toFixed(2)})`;
+		ctx.fillStyle = `hsla(${randomInt(0, 360)}, 40%, 60%, ${(randomInt(10, 30) / 100).toFixed(2)})`;
 		ctx.beginPath();
-		ctx.arc(randomInt(0, width), randomInt(0, height), randomInt(1, 3), 0, Math.PI * 2);
+		ctx.arc(randomInt(0, width), randomInt(0, height), randomInt(1, 2), 0, Math.PI * 2);
 		ctx.fill();
 	}
 }
 
 function renderCaptchaImage(text: string): Buffer {
-	const width = 280;
-	const height = 90;
+	const width = 320;
+	const height = 100;
 	const canvas = createCanvas(width, height);
 	const ctx = canvas.getContext('2d');
 
-	paintCanvasNoise(ctx, width, height, 6, 80);
+	// Heavy noise background
+	paintCanvasNoise(ctx, width, height, 8, 80);
 
-	// Draw each character with individual distortion
-	const chars = text.split('');
-	const fontSize = 36;
-	const totalWidth = chars.length * 24;
-	let x = (width - totalWidth) / 2;
-
-	for (const char of chars) {
+	// Draw decoy characters — bold and ~10% more visible than main text (fools AI contrast detection)
+	// Positioned only in top/bottom edges to avoid cluttering the center text zone
+	const decoyCount = randomInt(6, 12);
+	for (let i = 0; i < decoyCount; i++) {
 		ctx.save();
-		const angle = (randomInt(-15, 16) * Math.PI) / 180;
-		const yOffset = randomInt(-6, 7);
-		ctx.translate(x + 12, height / 2 + yOffset);
-		ctx.rotate(angle);
-		ctx.font = `bold ${fontSize + randomInt(-4, 5)}px monospace`;
-		ctx.fillStyle = `hsl(${randomInt(0, 360)}, 70%, 75%)`;
+		const dx = randomInt(10, width - 10);
+		// Keep decoys out of the vertical middle (30%-70%) — place in top or bottom band
+		const dy = randomInt(2) === 0
+			? randomInt(5, Math.floor(height * 0.3))
+			: randomInt(Math.ceil(height * 0.7), height - 5);
+		ctx.translate(dx, dy);
+		ctx.rotate((randomInt(-60, 61) * Math.PI) / 180);
+		ctx.font = `bold ${randomInt(28, 50)}px monospace`;
+		ctx.fillStyle = `hsla(${randomInt(0, 360)}, 65%, 68%, 0.80)`;
 		ctx.textAlign = 'center';
 		ctx.textBaseline = 'middle';
-		ctx.fillText(char, 0, 0);
+		ctx.fillText(CAPTCHA_CHARS[randomInt(CAPTCHA_CHARS.length)], 0, 0);
 		ctx.restore();
-		x += 24;
 	}
 
-	// Additional interference lines over text
-	for (let i = 0; i < 3; i++) {
-		ctx.strokeStyle = `hsla(${randomInt(0, 360)}, 60%, 60%, 0.3)`;
-		ctx.lineWidth = 1;
+	// Draw actual characters — faded to ~80% with heavy distortion
+	const chars = text.split('');
+	const charSpacing = 32; // large spacing
+	const totalWidth = chars.length * charSpacing;
+	let x = (width - totalWidth) / 2;
+
+	// Wavy baseline using sine wave (25% more amplitude)
+	const waveAmplitude = randomInt(8, 15);
+	const waveFrequency = randomInt(15, 30) / 1000;
+	const wavePhase = randomInt(0, 628) / 100; // 0 to 2π
+
+	for (let i = 0; i < chars.length; i++) {
+		const char = chars[i];
+		ctx.save();
+
+		// 25% more rotation (±31°)
+		const angle = (randomInt(-31, 32) * Math.PI) / 180;
+
+		// Wavy y-offset via sine + stronger jitter
+		const sineOffset = Math.sin(x * waveFrequency + wavePhase) * waveAmplitude;
+		const yOffset = sineOffset + randomInt(-5, 6);
+
+		ctx.translate(x + charSpacing / 2, height / 2 + yOffset);
+		ctx.rotate(angle);
+
+		// Wide font size variation per character (28-48px)
+		const charSize = randomInt(28, 49);
+		ctx.font = `${charSize}px monospace`; // NOT bold (decoys are bold)
+
+		// Faded to ~80%: lower lightness + reduced opacity
+		const hue = randomInt(0, 360);
+		ctx.fillStyle = `hsla(${hue}, 60%, 65%, 0.55)`;
+		ctx.textAlign = 'center';
+		ctx.textBaseline = 'middle';
+
+		// Offset shadow/outline for depth confusion
+		ctx.strokeStyle = `hsla(${(hue + 180) % 360}, 40%, 25%, 0.3)`;
+		ctx.lineWidth = 2;
+		ctx.strokeText(char, randomInt(-2, 3), randomInt(-2, 3));
+
+		ctx.fillText(char, 0, 0);
+		ctx.restore();
+		x += charSpacing;
+	}
+
+	// Strong bezier interference lines through the text zone
+	for (let i = 0; i < 6; i++) {
+		ctx.strokeStyle = `hsla(${randomInt(0, 360)}, 80%, 60%, ${(randomInt(40, 70) / 100).toFixed(2)})`;
+		ctx.lineWidth = randomInt(2, 4);
 		ctx.beginPath();
-		ctx.moveTo(randomInt(0, width), randomInt(0, height));
-		ctx.lineTo(randomInt(0, width), randomInt(0, height));
+		const yStart = randomInt(height * 0.15, height * 0.85);
+		const yEnd = randomInt(height * 0.15, height * 0.85);
+		ctx.moveTo(randomInt(0, 20), yStart);
+		ctx.bezierCurveTo(
+			randomInt(width * 0.15, width * 0.45),
+			randomInt(height * 0.05, height * 0.95),
+			randomInt(width * 0.55, width * 0.85),
+			randomInt(height * 0.05, height * 0.95),
+			randomInt(width - 20, width),
+			yEnd,
+		);
+		ctx.stroke();
+	}
+
+	// Grid-like interference (breaks character segmentation)
+	for (let i = 0; i < 5; i++) {
+		ctx.strokeStyle = `hsla(${randomInt(0, 360)}, 60%, 55%, ${(randomInt(20, 40) / 100).toFixed(2)})`;
+		ctx.lineWidth = randomInt(1, 3);
+		ctx.beginPath();
+		const y = randomInt(height * 0.2, height * 0.8);
+		ctx.moveTo(0, y + randomInt(-8, 9));
+		ctx.lineTo(width, y + randomInt(-8, 9));
 		ctx.stroke();
 	}
 
@@ -308,7 +374,7 @@ async function handleVerificationStart(interaction: ButtonInteraction): Promise<
 		.setColor(Colors.INFO)
 		.setTitle('Verification Challenge')
 		.setDescription(
-			'Solve the math problem shown in the image below and click **Submit Answer** to enter your answer.\n\nThis challenge expires in 5 minutes.',
+			'Type the characters in the middle of the image below and click **Submit Answer** to enter your answer.\n\nThis challenge expires in 5 minutes.',
 		)
 		.setImage('attachment://captcha.png')
 		.setFooter(FOOTER)
@@ -333,7 +399,8 @@ async function showAnswerModal(interaction: ButtonInteraction, sessionId: string
 	const session = challengeSessions.get(sessionId);
 	if (!session) {
 		await interaction.reply({
-			content: 'This challenge has expired. Click the verify button again.',
+			content: 'This challenge has expired.',
+			components: [retryRow()],
 			flags: [MessageFlags.Ephemeral],
 		});
 		return;
@@ -353,9 +420,9 @@ async function showAnswerModal(interaction: ButtonInteraction, sessionId: string
 
 	const answerInput = new TextInputBuilder()
 		.setCustomId('answer')
-		.setLabel('What is the answer to the math problem?')
+		.setLabel('Type the characters in the middle of the image')
 		.setStyle(TextInputStyle.Short)
-		.setPlaceholder('Type the number here')
+		.setPlaceholder('e.g. ACDF7K')
 		.setRequired(true)
 		.setMaxLength(10);
 
@@ -370,7 +437,8 @@ async function handleChallengeAnswer(
 	const session = challengeSessions.get(sessionId);
 	if (!session) {
 		await interaction.reply({
-			content: 'This challenge has expired. Click the verify button again.',
+			content: 'This challenge has expired.',
+			components: [retryRow()],
 			flags: [MessageFlags.Ephemeral],
 		});
 		return;
@@ -393,13 +461,30 @@ async function handleChallengeAnswer(
 				? failed.queueError
 					? `Challenge timed out and manual review queue failed: ${failed.queueError}`
 					: 'Challenge timed out. Your verification has been sent to manual moderator review.'
-				: 'Challenge timed out. Click the verify button again.',
+				: 'Challenge timed out.',
+			components: failed.manualReview ? [] : [retryRow()],
 			flags: [MessageFlags.Ephemeral],
 		});
 		return;
 	}
 
-	const userAnswer = interaction.fields.getTextInputValue('answer').trim();
+	// Anti-bot: reject suspiciously fast answers (no human reads + types in under 3s)
+	const solveTime = Date.now() - session.createdAt;
+	if (solveTime < MIN_SOLVE_TIME_MS) {
+		const failed = await registerFailedAttempt(interaction, 'Suspicious solve speed detected.');
+		await interaction.reply({
+			content: failed.manualReview
+				? failed.queueError
+					? `Suspicious activity detected and manual review queue failed: ${failed.queueError}`
+					: 'Suspicious activity detected. Your verification has been sent to manual moderator review.'
+				: 'That was suspiciously fast.',
+			components: failed.manualReview ? [] : [retryRow()],
+			flags: [MessageFlags.Ephemeral],
+		});
+		return;
+	}
+
+	const userAnswer = interaction.fields.getTextInputValue('answer').trim().toUpperCase();
 	if (userAnswer !== session.answer) {
 		const failed = await registerFailedAttempt(interaction, 'Incorrect challenge answer.');
 		await interaction.reply({
@@ -407,7 +492,8 @@ async function handleChallengeAnswer(
 				? failed.queueError
 					? `Incorrect answer and manual review queue failed: ${failed.queueError}`
 					: 'Incorrect answer. You reached the retry limit and were sent for manual moderator review.'
-				: 'Incorrect answer. Click the verify button to try again.',
+				: 'Incorrect answer.',
+			components: failed.manualReview ? [] : [retryRow()],
 			flags: [MessageFlags.Ephemeral],
 		});
 		return;
@@ -534,6 +620,7 @@ function createContextChallenge(
 		answer,
 		phase: 'context',
 		expiresAt: Date.now() + CHALLENGE_TTL_MS,
+		createdAt: Date.now(),
 	});
 
 	return { sessionId, lines, hint };
@@ -597,7 +684,8 @@ async function showContextModal(interaction: ButtonInteraction, sessionId: strin
 	const session = challengeSessions.get(sessionId);
 	if (!session) {
 		await interaction.reply({
-			content: 'This challenge has expired. Click the verify button again.',
+			content: 'This challenge has expired.',
+			components: [retryRow()],
 			flags: [MessageFlags.Ephemeral],
 		});
 		return;
@@ -634,7 +722,8 @@ async function handleContextAnswer(
 	const session = challengeSessions.get(sessionId);
 	if (!session) {
 		await interaction.reply({
-			content: 'This challenge has expired. Click the verify button again.',
+			content: 'This challenge has expired.',
+			components: [retryRow()],
 			flags: [MessageFlags.Ephemeral],
 		});
 		return;
@@ -657,7 +746,8 @@ async function handleContextAnswer(
 				? failed.queueError
 					? `Challenge timed out and manual review queue failed: ${failed.queueError}`
 					: 'Challenge timed out. Your verification has been sent to manual moderator review.'
-				: 'Challenge timed out. Click the verify button again.',
+				: 'Challenge timed out.',
+			components: failed.manualReview ? [] : [retryRow()],
 			flags: [MessageFlags.Ephemeral],
 		});
 		return;
@@ -671,7 +761,8 @@ async function handleContextAnswer(
 				? failed.queueError
 					? `Incorrect answer and manual review queue failed: ${failed.queueError}`
 					: 'Incorrect answer. You reached the retry limit and were sent for manual moderator review.'
-				: 'Incorrect answer. Click the verify button to try again.',
+				: 'Incorrect answer.',
+			components: failed.manualReview ? [] : [retryRow()],
 			flags: [MessageFlags.Ephemeral],
 		});
 		return;
@@ -915,6 +1006,7 @@ function createChallenge(
 		userId,
 		answer: captcha.answer,
 		expiresAt: Date.now() + CHALLENGE_TTL_MS,
+		createdAt: Date.now(),
 	});
 
 	return {
