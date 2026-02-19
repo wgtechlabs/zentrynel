@@ -1,5 +1,13 @@
-import { ChannelType, MessageFlags, PermissionFlagsBits, SlashCommandBuilder } from 'discord.js';
-import { EmbedBuilder } from 'discord.js';
+import {
+	ActionRowBuilder,
+	ButtonBuilder,
+	ButtonStyle,
+	ChannelType,
+	EmbedBuilder,
+	MessageFlags,
+	PermissionFlagsBits,
+	SlashCommandBuilder,
+} from 'discord.js';
 import { Colors } from '../config/constants.js';
 import { db } from '../db/index.js';
 import { errorEmbed, successEmbed } from '../utils/embeds.js';
@@ -59,6 +67,77 @@ export const data = new SlashCommandBuilder()
 					.setRequired(true),
 			),
 	)
+	.addSubcommand((sub) =>
+		sub
+			.setName('verificationenable')
+			.setDescription('Enable or disable member verification')
+			.addBooleanOption((option) =>
+				option
+					.setName('enabled')
+					.setDescription('Enable or disable verification')
+					.setRequired(true),
+			),
+	)
+	.addSubcommand((sub) =>
+		sub
+			.setName('verificationchannels')
+			.setDescription('Set verify and manual review channels')
+			.addChannelOption((option) =>
+				option
+					.setName('verify')
+					.setDescription('Channel where members can start verification')
+					.addChannelTypes(ChannelType.GuildText)
+					.setRequired(true),
+			)
+			.addChannelOption((option) =>
+				option
+					.setName('review')
+					.setDescription('Channel for moderator manual verification reviews')
+					.addChannelTypes(ChannelType.GuildText)
+					.setRequired(true),
+			),
+	)
+	.addSubcommand((sub) =>
+		sub
+			.setName('verificationroles')
+			.setDescription('Set verified and unverified roles')
+			.addRoleOption((option) =>
+				option
+					.setName('verified')
+					.setDescription('Role granted after successful verification')
+					.setRequired(true),
+			)
+			.addRoleOption((option) =>
+				option
+					.setName('unverified')
+					.setDescription('Role for members pending verification')
+					.setRequired(true),
+			),
+	)
+	.addSubcommand((sub) =>
+		sub
+			.setName('verificationrules')
+			.setDescription('Set automated verification thresholds')
+			.addIntegerOption((option) =>
+				option
+					.setName('minage')
+					.setDescription('Minimum account age in hours')
+					.setMinValue(1)
+					.setMaxValue(8760),
+			)
+			.addIntegerOption((option) =>
+				option
+					.setName('maxattempts')
+					.setDescription('Maximum automated challenge attempts')
+					.setMinValue(1)
+					.setMaxValue(10),
+			),
+	)
+	.addSubcommand((sub) =>
+		sub
+			.setName('verificationpanel')
+			.setDescription('Post the verification panel in the configured verify channel'),
+	)
 	.addSubcommand((sub) => sub.setName('reset').setDescription('Reset all settings to defaults'))
 	.setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
 
@@ -74,6 +153,16 @@ export async function execute(interaction) {
 			return handleThresholds(interaction);
 		case 'muteduration':
 			return handleMuteDuration(interaction);
+		case 'verificationenable':
+			return handleVerificationEnable(interaction);
+		case 'verificationchannels':
+			return handleVerificationChannels(interaction);
+		case 'verificationroles':
+			return handleVerificationRoles(interaction);
+		case 'verificationrules':
+			return handleVerificationRules(interaction);
+		case 'verificationpanel':
+			return handleVerificationPanel(interaction);
 		case 'reset':
 			return handleReset(interaction);
 	}
@@ -94,6 +183,37 @@ async function handleView(interaction) {
 			{
 				name: 'Default Mute Duration',
 				value: formatMs(config.mute_duration_default),
+				inline: true,
+			},
+			{ name: '\u200b', value: '\u200b', inline: true },
+			{
+				name: 'Verification',
+				value: config.verification_enabled ? 'Enabled' : 'Disabled',
+				inline: true,
+			},
+			{
+				name: 'Verify Channel',
+				value: config.verify_channel_id ? `<#${config.verify_channel_id}>` : 'Not set',
+				inline: true,
+			},
+			{
+				name: 'Review Channel',
+				value: config.review_channel_id ? `<#${config.review_channel_id}>` : 'Not set',
+				inline: true,
+			},
+			{
+				name: 'Verified Role',
+				value: config.verified_role_id ? `<@&${config.verified_role_id}>` : 'Not set',
+				inline: true,
+			},
+			{
+				name: 'Unverified Role',
+				value: config.unverified_role_id ? `<@&${config.unverified_role_id}>` : 'Not set',
+				inline: true,
+			},
+			{
+				name: 'Verification Rules',
+				value: `Min account age: **${config.verification_min_account_age_hours}h**\nMax attempts: **${config.verification_max_attempts}**`,
 				inline: true,
 			},
 			{ name: '\u200b', value: '\u200b', inline: true },
@@ -203,6 +323,202 @@ async function handleMuteDuration(interaction) {
 
 	await interaction.reply({
 		embeds: [successEmbed('Default Mute Duration Updated', `Set to **${formatDuration(ms)}**.`)],
+	});
+}
+
+async function handleVerificationEnable(interaction) {
+	const enabled = interaction.options.getBoolean('enabled', true);
+
+	await db.upsertGuildConfig(interaction.guildId, { verification_enabled: enabled ? 1 : 0 });
+
+	await interaction.reply({
+		embeds: [
+			successEmbed(
+				'Verification Updated',
+				`Member verification is now **${enabled ? 'enabled' : 'disabled'}**.`,
+			),
+		],
+	});
+}
+
+async function handleVerificationChannels(interaction) {
+	const verifyChannel = interaction.options.getChannel('verify', true);
+	const reviewChannel = interaction.options.getChannel('review', true);
+
+	const verifyPermissions = verifyChannel.permissionsFor(interaction.guild.members.me);
+	if (!verifyPermissions?.has(['ViewChannel', 'SendMessages', 'EmbedLinks'])) {
+		return interaction.reply({
+			embeds: [
+				errorEmbed(
+					'I need **View Channel**, **Send Messages**, and **Embed Links** in the verify channel.',
+				),
+			],
+			flags: [MessageFlags.Ephemeral],
+		});
+	}
+
+	const reviewPermissions = reviewChannel.permissionsFor(interaction.guild.members.me);
+	if (!reviewPermissions?.has(['ViewChannel', 'SendMessages', 'EmbedLinks'])) {
+		return interaction.reply({
+			embeds: [
+				errorEmbed(
+					'I need **View Channel**, **Send Messages**, and **Embed Links** in the review channel.',
+				),
+			],
+			flags: [MessageFlags.Ephemeral],
+		});
+	}
+
+	await db.upsertGuildConfig(interaction.guildId, {
+		verify_channel_id: verifyChannel.id,
+		review_channel_id: reviewChannel.id,
+	});
+
+	await interaction.reply({
+		embeds: [
+			successEmbed(
+				'Verification Channels Updated',
+				`Verify channel: ${verifyChannel}\nReview channel: ${reviewChannel}`,
+			),
+		],
+	});
+}
+
+async function handleVerificationRoles(interaction) {
+	const verifiedRole = interaction.options.getRole('verified', true);
+	const unverifiedRole = interaction.options.getRole('unverified', true);
+
+	if (verifiedRole.id === unverifiedRole.id) {
+		return interaction.reply({
+			embeds: [errorEmbed('Verified and unverified roles must be different roles.')],
+			flags: [MessageFlags.Ephemeral],
+		});
+	}
+
+	const botMember = interaction.guild.members.me;
+	if (!botMember.permissions.has(PermissionFlagsBits.ManageRoles)) {
+		return interaction.reply({
+			embeds: [errorEmbed('I need the **Manage Roles** permission to manage verification roles.')],
+			flags: [MessageFlags.Ephemeral],
+		});
+	}
+
+	if (
+		verifiedRole.position >= botMember.roles.highest.position ||
+		unverifiedRole.position >= botMember.roles.highest.position
+	) {
+		return interaction.reply({
+			embeds: [errorEmbed('My highest role must be above both verified and unverified roles.')],
+			flags: [MessageFlags.Ephemeral],
+		});
+	}
+
+	await db.upsertGuildConfig(interaction.guildId, {
+		verified_role_id: verifiedRole.id,
+		unverified_role_id: unverifiedRole.id,
+	});
+
+	await interaction.reply({
+		embeds: [
+			successEmbed(
+				'Verification Roles Updated',
+				`Verified role: ${verifiedRole}\nUnverified role: ${unverifiedRole}`,
+			),
+		],
+	});
+}
+
+async function handleVerificationRules(interaction) {
+	const minAge = interaction.options.getInteger('minage');
+	const maxAttempts = interaction.options.getInteger('maxattempts');
+
+	if (minAge === null && maxAttempts === null) {
+		return interaction.reply({
+			embeds: [errorEmbed('Provide at least one verification rule to update.')],
+			flags: [MessageFlags.Ephemeral],
+		});
+	}
+
+	const config = db.getGuildConfig(interaction.guildId);
+
+	await db.upsertGuildConfig(interaction.guildId, {
+		verification_min_account_age_hours: minAge ?? config.verification_min_account_age_hours,
+		verification_max_attempts: maxAttempts ?? config.verification_max_attempts,
+	});
+
+	const updated = db.getGuildConfig(interaction.guildId);
+	await interaction.reply({
+		embeds: [
+			successEmbed(
+				'Verification Rules Updated',
+				`Min account age: **${updated.verification_min_account_age_hours}h**\nMax attempts: **${updated.verification_max_attempts}**`,
+			),
+		],
+	});
+}
+
+async function handleVerificationPanel(interaction) {
+	const config = db.getGuildConfig(interaction.guildId);
+
+	if (!config.verification_enabled) {
+		return interaction.reply({
+			embeds: [
+				errorEmbed('Enable verification first using `/config verificationenable enabled:true`.'),
+			],
+			flags: [MessageFlags.Ephemeral],
+		});
+	}
+
+	if (!config.verify_channel_id || !config.review_channel_id) {
+		return interaction.reply({
+			embeds: [errorEmbed('Set verification channels first using `/config verificationchannels`.')],
+			flags: [MessageFlags.Ephemeral],
+		});
+	}
+
+	if (!config.verified_role_id || !config.unverified_role_id) {
+		return interaction.reply({
+			embeds: [errorEmbed('Set verification roles first using `/config verificationroles`.')],
+			flags: [MessageFlags.Ephemeral],
+		});
+	}
+
+	const verifyChannel =
+		interaction.guild.channels.cache.get(config.verify_channel_id) ||
+		(await interaction.guild.channels.fetch(config.verify_channel_id).catch(() => null));
+
+	if (!verifyChannel || verifyChannel.type !== ChannelType.GuildText) {
+		return interaction.reply({
+			embeds: [errorEmbed('The configured verify channel is missing or is not a text channel.')],
+			flags: [MessageFlags.Ephemeral],
+		});
+	}
+
+	const panelEmbed = new EmbedBuilder()
+		.setColor(Colors.INFO)
+		.setTitle('Community Verification')
+		.setDescription(
+			'Click the button below to start verification.\n\nIf automated checks fail, your request is queued for manual moderator review.',
+		)
+		.setTimestamp();
+
+	const row = new ActionRowBuilder().addComponents(
+		new ButtonBuilder()
+			.setCustomId('verify:start')
+			.setLabel('Start Verification')
+			.setStyle(ButtonStyle.Primary),
+	);
+
+	const panelMessage = await verifyChannel.send({ embeds: [panelEmbed], components: [row] });
+
+	await interaction.reply({
+		embeds: [
+			successEmbed(
+				'Verification Panel Posted',
+				`Verification panel posted in ${verifyChannel}.\n[Jump to message](${panelMessage.url})`,
+			),
+		],
+		flags: [MessageFlags.Ephemeral],
 	});
 }
 

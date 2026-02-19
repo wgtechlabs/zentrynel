@@ -1,6 +1,6 @@
+import { Database } from 'bun:sqlite';
 import { existsSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { Database } from 'bun:sqlite';
 import { Defaults } from '../config/constants.js';
 import { env } from '../config/env.js';
 import { createTables } from './schema.js';
@@ -32,6 +32,13 @@ export function close() {
 const defaultConfig = {
 	log_channel_id: null,
 	mute_role_id: null,
+	verify_channel_id: null,
+	review_channel_id: null,
+	verified_role_id: null,
+	unverified_role_id: null,
+	verification_enabled: Defaults.VERIFICATION_ENABLED,
+	verification_min_account_age_hours: Defaults.VERIFICATION_MIN_ACCOUNT_AGE_HOURS,
+	verification_max_attempts: Defaults.VERIFICATION_MAX_ATTEMPTS,
 	warn_threshold_mute: Defaults.WARN_THRESHOLD_MUTE,
 	warn_threshold_kick: Defaults.WARN_THRESHOLD_KICK,
 	warn_threshold_ban: Defaults.WARN_THRESHOLD_BAN,
@@ -49,11 +56,50 @@ export function upsertGuildConfig(guildId, config) {
 
 	database
 		.query(`
-			INSERT INTO guild_config (guild_id, log_channel_id, mute_role_id, warn_threshold_mute, warn_threshold_kick, warn_threshold_ban, mute_duration_default, updated_at)
-			VALUES ($guild_id, $log_channel_id, $mute_role_id, $warn_threshold_mute, $warn_threshold_kick, $warn_threshold_ban, $mute_duration_default, datetime('now'))
+			INSERT INTO guild_config (
+				guild_id,
+				log_channel_id,
+				mute_role_id,
+				verify_channel_id,
+				review_channel_id,
+				verified_role_id,
+				unverified_role_id,
+				verification_enabled,
+				verification_min_account_age_hours,
+				verification_max_attempts,
+				warn_threshold_mute,
+				warn_threshold_kick,
+				warn_threshold_ban,
+				mute_duration_default,
+				updated_at
+			)
+			VALUES (
+				$guild_id,
+				$log_channel_id,
+				$mute_role_id,
+				$verify_channel_id,
+				$review_channel_id,
+				$verified_role_id,
+				$unverified_role_id,
+				$verification_enabled,
+				$verification_min_account_age_hours,
+				$verification_max_attempts,
+				$warn_threshold_mute,
+				$warn_threshold_kick,
+				$warn_threshold_ban,
+				$mute_duration_default,
+				datetime('now')
+			)
 			ON CONFLICT(guild_id) DO UPDATE SET
 				log_channel_id = $log_channel_id,
 				mute_role_id = $mute_role_id,
+				verify_channel_id = $verify_channel_id,
+				review_channel_id = $review_channel_id,
+				verified_role_id = $verified_role_id,
+				unverified_role_id = $unverified_role_id,
+				verification_enabled = $verification_enabled,
+				verification_min_account_age_hours = $verification_min_account_age_hours,
+				verification_max_attempts = $verification_max_attempts,
 				warn_threshold_mute = $warn_threshold_mute,
 				warn_threshold_kick = $warn_threshold_kick,
 				warn_threshold_ban = $warn_threshold_ban,
@@ -64,6 +110,13 @@ export function upsertGuildConfig(guildId, config) {
 			$guild_id: guildId,
 			$log_channel_id: merged.log_channel_id,
 			$mute_role_id: merged.mute_role_id,
+			$verify_channel_id: merged.verify_channel_id,
+			$review_channel_id: merged.review_channel_id,
+			$verified_role_id: merged.verified_role_id,
+			$unverified_role_id: merged.unverified_role_id,
+			$verification_enabled: merged.verification_enabled,
+			$verification_min_account_age_hours: merged.verification_min_account_age_hours,
+			$verification_max_attempts: merged.verification_max_attempts,
 			$warn_threshold_mute: merged.warn_threshold_mute,
 			$warn_threshold_kick: merged.warn_threshold_kick,
 			$warn_threshold_ban: merged.warn_threshold_ban,
@@ -73,6 +126,90 @@ export function upsertGuildConfig(guildId, config) {
 
 export function deleteGuildConfig(guildId) {
 	database.query('DELETE FROM guild_config WHERE guild_id = ?').run(guildId);
+}
+
+// --- Verification ---
+
+const defaultVerificationState = {
+	status: 'PENDING',
+	attempts: 0,
+	risk_score: 0,
+	risk_reasons: null,
+	manual_required: 0,
+	review_message_id: null,
+	manual_reason: null,
+	last_challenge_at: null,
+};
+
+export function getVerificationState(guildId, userId) {
+	return (
+		database
+			.query('SELECT * FROM verification_state WHERE guild_id = ? AND user_id = ?')
+			.get(guildId, userId) || null
+	);
+}
+
+export function upsertVerificationState(guildId, userId, state) {
+	const current = getVerificationState(guildId, userId);
+	const merged = { ...defaultVerificationState, ...(current || {}), ...state };
+
+	database
+		.query(`
+			INSERT INTO verification_state (
+				guild_id,
+				user_id,
+				status,
+				attempts,
+				risk_score,
+				risk_reasons,
+				manual_required,
+				review_message_id,
+				manual_reason,
+				last_challenge_at,
+				updated_at
+			)
+			VALUES (
+				$guild_id,
+				$user_id,
+				$status,
+				$attempts,
+				$risk_score,
+				$risk_reasons,
+				$manual_required,
+				$review_message_id,
+				$manual_reason,
+				$last_challenge_at,
+				datetime('now')
+			)
+			ON CONFLICT(guild_id, user_id) DO UPDATE SET
+				status = $status,
+				attempts = $attempts,
+				risk_score = $risk_score,
+				risk_reasons = $risk_reasons,
+				manual_required = $manual_required,
+				review_message_id = $review_message_id,
+				manual_reason = $manual_reason,
+				last_challenge_at = $last_challenge_at,
+				updated_at = datetime('now')
+		`)
+		.run({
+			$guild_id: guildId,
+			$user_id: userId,
+			$status: merged.status,
+			$attempts: merged.attempts,
+			$risk_score: merged.risk_score,
+			$risk_reasons: merged.risk_reasons,
+			$manual_required: merged.manual_required,
+			$review_message_id: merged.review_message_id,
+			$manual_reason: merged.manual_reason,
+			$last_challenge_at: merged.last_challenge_at,
+		});
+}
+
+export function deleteVerificationState(guildId, userId) {
+	database
+		.query('DELETE FROM verification_state WHERE guild_id = ? AND user_id = ?')
+		.run(guildId, userId);
 }
 
 // --- Warnings ---

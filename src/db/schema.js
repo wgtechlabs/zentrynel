@@ -1,4 +1,4 @@
-export const CURRENT_VERSION = 1;
+export const CURRENT_VERSION = 2;
 
 export function createTables(database) {
 	database.run(`
@@ -6,6 +6,13 @@ export function createTables(database) {
 			guild_id TEXT PRIMARY KEY,
 			log_channel_id TEXT,
 			mute_role_id TEXT,
+			verify_channel_id TEXT,
+			review_channel_id TEXT,
+			verified_role_id TEXT,
+			unverified_role_id TEXT,
+			verification_enabled INTEGER NOT NULL DEFAULT 0,
+			verification_min_account_age_hours INTEGER NOT NULL DEFAULT 24,
+			verification_max_attempts INTEGER NOT NULL DEFAULT 3,
 			warn_threshold_mute INTEGER NOT NULL DEFAULT 3,
 			warn_threshold_kick INTEGER NOT NULL DEFAULT 5,
 			warn_threshold_ban INTEGER NOT NULL DEFAULT 7,
@@ -52,16 +59,64 @@ export function createTables(database) {
 	`);
 
 	database.run(`
+		CREATE TABLE IF NOT EXISTS verification_state (
+			guild_id TEXT NOT NULL,
+			user_id TEXT NOT NULL,
+			status TEXT NOT NULL DEFAULT 'PENDING',
+			attempts INTEGER NOT NULL DEFAULT 0,
+			risk_score INTEGER NOT NULL DEFAULT 0,
+			risk_reasons TEXT,
+			manual_required INTEGER NOT NULL DEFAULT 0,
+			review_message_id TEXT,
+			manual_reason TEXT,
+			last_challenge_at TEXT,
+			created_at TEXT NOT NULL DEFAULT (datetime('now')),
+			updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+			PRIMARY KEY (guild_id, user_id)
+		)
+	`);
+
+	database.run(`
+		CREATE INDEX IF NOT EXISTS idx_verification_state_guild_status
+		ON verification_state(guild_id, status)
+	`);
+
+	database.run(`
 		CREATE TABLE IF NOT EXISTS schema_version (
 			version INTEGER PRIMARY KEY,
 			applied_at TEXT NOT NULL DEFAULT (datetime('now'))
 		)
 	`);
 
+	ensureGuildConfigColumns(database);
+
 	const row = database
 		.query('SELECT version FROM schema_version ORDER BY version DESC LIMIT 1')
 		.get();
 	if (!row) {
 		database.run('INSERT INTO schema_version (version) VALUES (?)', [CURRENT_VERSION]);
+	} else if (row.version < CURRENT_VERSION) {
+		database.run('INSERT INTO schema_version (version) VALUES (?)', [CURRENT_VERSION]);
+	}
+}
+
+function ensureGuildConfigColumns(database) {
+	const columns = database.query('PRAGMA table_info(guild_config)').all();
+	const names = new Set(columns.map((column) => column.name));
+
+	const requiredColumns = [
+		'verify_channel_id TEXT',
+		'review_channel_id TEXT',
+		'verified_role_id TEXT',
+		'unverified_role_id TEXT',
+		'verification_enabled INTEGER NOT NULL DEFAULT 0',
+		'verification_min_account_age_hours INTEGER NOT NULL DEFAULT 24',
+		'verification_max_attempts INTEGER NOT NULL DEFAULT 3',
+	];
+
+	for (const definition of requiredColumns) {
+		const columnName = definition.split(' ')[0];
+		if (names.has(columnName)) continue;
+		database.run(`ALTER TABLE guild_config ADD COLUMN ${definition}`);
 	}
 }

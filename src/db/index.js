@@ -7,6 +7,10 @@ export const db = {
 	getGuildConfig: (guildId) => driver.getGuildConfig(guildId),
 	upsertGuildConfig: (guildId, config) => driver.upsertGuildConfig(guildId, config),
 	deleteGuildConfig: (guildId) => driver.deleteGuildConfig(guildId),
+	getVerificationState: (guildId, userId) => driver.getVerificationState(guildId, userId),
+	upsertVerificationState: (guildId, userId, state) =>
+		driver.upsertVerificationState(guildId, userId, state),
+	deleteVerificationState: (guildId, userId) => driver.deleteVerificationState(guildId, userId),
 
 	addWarning: (guildId, userId, moderatorId, reason) =>
 		driver.addWarning(guildId, userId, moderatorId, reason),
