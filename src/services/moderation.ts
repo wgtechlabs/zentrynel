@@ -36,7 +36,7 @@ export async function checkEscalation(
 				reason: `Automatic ban: reached ${warningCount} warnings`,
 			});
 
-			await db.logAction(
+			db.logAction(
 				interaction.guildId,
 				ActionTypes.BAN,
 				targetUser.id,
@@ -65,7 +65,7 @@ export async function checkEscalation(
 
 			await targetMember.kick(`Automatic kick: reached ${warningCount} warnings`);
 
-			await db.logAction(
+			db.logAction(
 				interaction.guildId,
 				ActionTypes.KICK,
 				targetUser.id,
@@ -90,7 +90,7 @@ export async function checkEscalation(
 
 			await targetMember.timeout(duration, `Automatic mute: reached ${warningCount} warnings`);
 
-			await db.logAction(
+			db.logAction(
 				interaction.guildId,
 				ActionTypes.MUTE,
 				targetUser.id,
