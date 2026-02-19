@@ -11,7 +11,8 @@
 		"register": "bun run src/handlers/commandRegistrar.js",
 		"lint": "bunx biome check .",
 		"lint:fix": "bunx biome check --write .",
-		"format": "bunx biome format --write ."
+		"format": "bunx biome format --write .",
+		"test": "bun test"
 	},
 	"author": "Waren Gonzaga",
 	"license": "GPL-3.0",
