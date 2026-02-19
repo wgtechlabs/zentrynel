@@ -1,0 +1,79 @@
+import { MessageFlags, PermissionFlagsBits, SlashCommandBuilder } from 'discord.js';
+import type { ChatInputCommandInteraction } from 'discord.js';
+import { ActionTypes } from '../config/constants.js';
+import { db } from '../db/index.js';
+import { send as sendModLog } from '../services/modLog.js';
+import { errorEmbed, successEmbed } from '../utils/embeds.js';
+import { canModerate } from '../utils/permissions.js';
+
+export const data = new SlashCommandBuilder()
+	.setName('kick')
+	.setDescription('Kick a user from the server')
+	.addUserOption((option) =>
+		option.setName('user').setDescription('The user to kick').setRequired(true),
+	)
+	.addStringOption((option) => option.setName('reason').setDescription('Reason for the kick'))
+	.setDefaultMemberPermissions(PermissionFlagsBits.KickMembers);
+
+export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
+	if (!interaction.guildId || !interaction.guild) {
+		await interaction.reply({
+			content: 'This command can only be used in a server.',
+			flags: [MessageFlags.Ephemeral],
+		});
+		return;
+	}
+
+	const targetUser = interaction.options.getUser('user', true);
+	const reason = (interaction.options.getString('reason') || 'No reason provided').slice(0, 1000);
+
+	const targetMember = await interaction.guild?.members.fetch(targetUser.id).catch(() => null);
+	if (!targetMember) {
+		return interaction.reply({
+			embeds: [errorEmbed('User not found in this server.')],
+			flags: [MessageFlags.Ephemeral],
+		});
+	}
+
+	const check = await canModerate(interaction, targetMember);
+	if (!check.allowed) {
+		return interaction.reply({
+			embeds: [errorEmbed(check.reason)],
+			flags: [MessageFlags.Ephemeral],
+		});
+	}
+
+	if (!targetMember.kickable) {
+		return interaction.reply({
+			embeds: [errorEmbed('I do not have permission to kick this user.')],
+			flags: [MessageFlags.Ephemeral],
+		});
+	}
+
+
+	await targetMember.kick(reason);
+
+	await db.logAction(
+		interaction.guildId,
+		ActionTypes.KICK,
+		targetUser.id,
+		interaction.user.id,
+		reason,
+		null,
+		null,
+	);
+
+	await sendModLog(interaction.guild, {
+		actionType: ActionTypes.KICK,
+		targetUser,
+		moderator: interaction.user,
+		reason,
+	});
+
+	const embed = successEmbed(
+		'User Kicked',
+		`${targetUser} has been kicked from the server.\n**Reason:** ${reason}`,
+	);
+
+	await interaction.reply({ embeds: [embed] });
+}

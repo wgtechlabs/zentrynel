@@ -12,4 +12,4 @@ COPY package.json .
 RUN mkdir -p data
 
 ENV NODE_ENV=production
-CMD ["bun", "run", "src/index.js"]
+CMD ["bun", "run", "src/index.ts"]

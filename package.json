@@ -3,15 +3,18 @@
 	"version": "0.2.4",
 	"description": "Discord moderation bot with escalating strike system, built with Bun and discord.js v14.",
 	"type": "module",
-	"main": "src/index.js",
+	"main": "src/index.ts",
 	"scripts": {
-		"start": "bun run src/index.js",
-		"dev": "bun --watch run src/bot.js",
-		"bot": "bun run src/bot.js",
-		"register": "bun run src/handlers/commandRegistrar.js",
+		"start": "bun run src/index.ts",
+		"dev": "bun --watch run src/bot.ts",
+		"bot": "bun run src/bot.ts",
+		"register": "bun run src/handlers/commandRegistrar.ts",
+		"typecheck": "tsc --noEmit",
 		"lint": "bunx biome check .",
 		"lint:fix": "bunx biome check --write .",
-		"format": "bunx biome format --write ."
+		"format": "bunx biome format --write .",
+		"test": "bun test",
+		"preview:captcha": "rm -f scripts/captcha-preview/* && bun run scripts/preview-captcha.ts"
 	},
 	"author": "Waren Gonzaga",
 	"license": "GPL-3.0",
@@ -19,9 +22,13 @@
 		"bun": ">=1.0.0"
 	},
 	"dependencies": {
+		"@napi-rs/canvas": "^0.1.93",
+		"@wgtechlabs/log-engine": "^2.3.1",
 		"discord.js": "^14.18.0"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "^1.9.4"
+		"@biomejs/biome": "^1.9.4",
+		"@types/node": "^25.3.0",
+		"typescript": "^5.9.3"
 	}
 }

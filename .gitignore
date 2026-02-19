@@ -4,3 +4,4 @@ data/*.db-wal
 data/*.db-shm
 .env
 *.log
+scripts/captcha-preview/
