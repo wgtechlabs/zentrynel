@@ -24,28 +24,37 @@ export const data = new SlashCommandBuilder()
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
 	if (!interaction.guildId || !interaction.guild) return;
 
-	const amount = interaction.options.getInteger('amount');
+	const amount = interaction.options.getInteger('amount', true);
 	const filterUser = interaction.options.getUser('user');
 
 	await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
 
-	const fetched = await interaction.channel?.messages.fetch({ limit: amount });
+	const channel = interaction.channel;
+	if (!channel || !('messages' in channel)) {
+		await interaction.editReply({
+			embeds: [errorEmbed('Cannot purge messages in this channel type.')],
+		});
+		return;
+	}
+
+	const fetched = await channel.messages.fetch({ limit: amount });
 
 	let toDelete = fetched;
 	if (filterUser) {
 		toDelete = fetched.filter((msg) => msg.author.id === filterUser.id);
 	}
 
-	const deleted = await interaction.channel?.bulkDelete(toDelete, true);
+	const deleted = await channel.bulkDelete(toDelete, true);
+	const deletedCount = deleted?.size ?? 0;
 
-	await db.logAction(
+	db.logAction(
 		interaction.guildId,
 		ActionTypes.PURGE,
 		filterUser?.id || 'channel',
 		interaction.user.id,
 		filterUser ? `Purged messages from ${filterUser.tag || filterUser.username}` : 'Bulk purge',
 		null,
-		{ count: deleted.size, channel: interaction.channel?.id },
+		{ count: deletedCount, channel: channel.id },
 	);
 
 	await sendModLog(interaction.guild, {
@@ -53,14 +62,14 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 		targetUser: filterUser || interaction.user,
 		moderator: interaction.user,
 		reason: filterUser
-			? `Purged ${deleted.size} messages from ${filterUser}`
-			: `Purged ${deleted.size} messages`,
-		extra: `Channel: <#${interaction.channel?.id}>`,
+			? `Purged ${deletedCount} messages from ${filterUser}`
+			: `Purged ${deletedCount} messages`,
+		extra: `Channel: <#${channel.id}>`,
 	});
 
 	const embed = successEmbed(
 		'Messages Purged',
-		`Deleted **${deleted.size}** message(s)${filterUser ? ` from ${filterUser}` : ''}.`,
+		`Deleted **${deletedCount}** message(s)${filterUser ? ` from ${filterUser}` : ''}.`,
 	);
 
 	await interaction.editReply({ embeds: [embed] });
