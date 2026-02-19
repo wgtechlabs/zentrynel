@@ -1,9 +1,15 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-const pkg = JSON.parse(readFileSync(resolve(import.meta.dirname, '../../package.json'), 'utf-8'));
+let pkgVersion = 'unknown';
+try {
+	const pkg = JSON.parse(readFileSync(resolve(import.meta.dirname, '../../package.json'), 'utf-8'));
+	pkgVersion = pkg.version || 'unknown';
+} catch {
+	// package.json missing or malformed — fall back gracefully
+}
 
-export const BOT_VERSION = pkg.version;
+export const BOT_VERSION = pkgVersion;
 
 export const Colors = {
 	WARN: 0xffa500,

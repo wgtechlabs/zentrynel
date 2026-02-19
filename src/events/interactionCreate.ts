@@ -23,7 +23,7 @@ export async function execute(interaction: Interaction, client: Client): Promise
 				await interaction.reply(reply);
 			}
 		}
-		if (!interaction.isChatInputCommand()) return;
+		return;
 	}
 
 	if (!interaction.isChatInputCommand()) return;
