@@ -12,13 +12,15 @@ import {
 	TextInputBuilder,
 	TextInputStyle,
 } from 'discord.js';
-import { ActionTypes, Colors } from '../config/constants.js';
+import { ActionTypes, BOT_VERSION, Colors } from '../config/constants.js';
 import { db } from '../db/index.js';
 import { logger } from '../utils/logger.js';
 import { send as sendModLog } from './modLog.js';
 
 const CHALLENGE_TTL_MS = 5 * 60 * 1000;
 const challengeSessions = new Map();
+
+const FOOTER = { text: `Zentrynel v${BOT_VERSION} — Built by Waren Gonzaga (WG Tech Labs)` };
 
 const OPERATORS = [
 	{ symbol: '+', fn: (a, b) => a + b },
@@ -267,6 +269,7 @@ async function handleVerificationStart(interaction) {
 			'Solve the math problem shown in the image below and click **Submit Answer** to enter your answer.\n\nThis challenge expires in 5 minutes.',
 		)
 		.setImage('attachment://captcha.png')
+		.setFooter(FOOTER)
 		.setTimestamp();
 
 	const row = new ActionRowBuilder().addComponents(
@@ -393,6 +396,7 @@ async function handleChallengeAnswer(interaction, sessionId) {
 			`CAPTCHA passed! Now answer this question from the image below.\n\n${ctxChallenge.hint}\n\nThis challenge expires in 5 minutes.`,
 		)
 		.setImage('attachment://context.png')
+		.setFooter(FOOTER)
 		.setTimestamp();
 
 	const row = new ActionRowBuilder().addComponents(
@@ -998,6 +1002,7 @@ async function queueManualReview(guild, member, config, { reasons, riskScore, tr
 			{ name: 'Triggered By', value: `${triggeredBy || 'System'}`, inline: true },
 			{ name: 'Reasons', value: reasonText },
 		)
+		.setFooter(FOOTER)
 		.setTimestamp();
 
 	const row = new ActionRowBuilder().addComponents(
@@ -1177,6 +1182,7 @@ function buildManualReviewResultEmbed(interaction, actionType, message) {
 	return baseEmbed
 		.setColor(Colors[actionType] || Colors.INFO)
 		.addFields({ name: 'Resolution', value: message })
+		.setFooter(FOOTER)
 		.setTimestamp();
 }
 
