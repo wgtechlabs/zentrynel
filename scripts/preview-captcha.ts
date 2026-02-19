@@ -18,7 +18,7 @@ const CAPTCHA_LENGTH_MIN = 5;
 const CAPTCHA_LENGTH_MAX = 7;
 
 function generateCaptcha(): { text: string; answer: string } {
-	const length = randomInt(CAPTCHA_LENGTH_MIN, CAPTCHA_LENGTH_MAX);
+	const length = randomInt(CAPTCHA_LENGTH_MIN, CAPTCHA_LENGTH_MAX + 1);
 	let text = '';
 	for (let i = 0; i < length; i++) {
 		text += CAPTCHA_CHARS[randomInt(CAPTCHA_CHARS.length)];
@@ -135,18 +135,26 @@ function renderCaptchaImage(text: string): Buffer {
 	}
 
 	// Strong bezier interference lines through the text zone
+	const yMinBezier = Math.floor(height * 0.15);
+	const yMaxBezier = Math.max(yMinBezier + 1, Math.floor(height * 0.85));
+	const hMinBezier = Math.floor(height * 0.05);
+	const hMaxBezier = Math.max(hMinBezier + 1, Math.floor(height * 0.95));
+	const wMin15 = Math.floor(width * 0.15);
+	const wMax45 = Math.max(wMin15 + 1, Math.floor(width * 0.45));
+	const wMin55 = Math.floor(width * 0.55);
+	const wMax85 = Math.max(wMin55 + 1, Math.floor(width * 0.85));
 	for (let i = 0; i < 6; i++) {
 		ctx.strokeStyle = `hsla(${randomInt(0, 360)}, 80%, 60%, ${(randomInt(40, 70) / 100).toFixed(2)})`;
 		ctx.lineWidth = randomInt(2, 4);
 		ctx.beginPath();
-		const yStart = randomInt(height * 0.15, height * 0.85);
-		const yEnd = randomInt(height * 0.15, height * 0.85);
+		const yStart = randomInt(yMinBezier, yMaxBezier);
+		const yEnd = randomInt(yMinBezier, yMaxBezier);
 		ctx.moveTo(randomInt(0, 20), yStart);
 		ctx.bezierCurveTo(
-			randomInt(width * 0.15, width * 0.45),
-			randomInt(height * 0.05, height * 0.95),
-			randomInt(width * 0.55, width * 0.85),
-			randomInt(height * 0.05, height * 0.95),
+			randomInt(wMin15, wMax45),
+			randomInt(hMinBezier, hMaxBezier),
+			randomInt(wMin55, wMax85),
+			randomInt(hMinBezier, hMaxBezier),
 			randomInt(width - 20, width),
 			yEnd,
 		);
@@ -154,11 +162,13 @@ function renderCaptchaImage(text: string): Buffer {
 	}
 
 	// Grid-like interference (breaks character segmentation)
+	const yMinGrid = Math.floor(height * 0.2);
+	const yMaxGrid = Math.max(yMinGrid + 1, Math.floor(height * 0.8));
 	for (let i = 0; i < 5; i++) {
 		ctx.strokeStyle = `hsla(${randomInt(0, 360)}, 60%, 55%, ${(randomInt(20, 40) / 100).toFixed(2)})`;
 		ctx.lineWidth = randomInt(1, 3);
 		ctx.beginPath();
-		const y = randomInt(height * 0.2, height * 0.8);
+		const y = randomInt(yMinGrid, yMaxGrid);
 		ctx.moveTo(0, y + randomInt(-8, 9));
 		ctx.lineTo(width, y + randomInt(-8, 9));
 		ctx.stroke();
