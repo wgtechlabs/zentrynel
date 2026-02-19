@@ -24,9 +24,9 @@ export const data = new SlashCommandBuilder()
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
 	if (!interaction.guildId || !interaction.guild) return;
 
-	const targetUser = interaction.options.getUser('user');
+	const targetUser = interaction.options.getUser('user', true);
 	const durationStr = interaction.options.getString('duration');
-	const reason = interaction.options.getString('reason') || 'No reason provided';
+	const reason = (interaction.options.getString('reason') || 'No reason provided').slice(0, 1000);
 
 	const targetMember = await interaction.guild?.members.fetch(targetUser.id).catch(() => null);
 	if (!targetMember) {
@@ -55,7 +55,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 		}
 		durationMs = parsed;
 	} else {
-		const config = await db.getGuildConfig(interaction.guildId);
+		const config = db.getGuildConfig(interaction.guildId);
 		durationMs = config.mute_duration_default;
 	}
 
@@ -68,7 +68,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
 	await targetMember.timeout(durationMs, reason);
 
-	await db.logAction(
+	db.logAction(
 		interaction.guildId,
 		ActionTypes.MUTE,
 		targetUser.id,

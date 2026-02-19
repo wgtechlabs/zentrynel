@@ -19,8 +19,8 @@ export const data = new SlashCommandBuilder()
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
 	if (!interaction.guildId || !interaction.guild) return;
 
-	const targetUser = interaction.options.getUser('user');
-	const reason = interaction.options.getString('reason') || 'No reason provided';
+	const targetUser = interaction.options.getUser('user', true);
+	const reason = (interaction.options.getString('reason') || 'No reason provided').slice(0, 1000);
 
 	const targetMember = await interaction.guild?.members.fetch(targetUser.id).catch(() => null);
 	if (!targetMember) {
@@ -38,15 +38,15 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 		});
 	}
 
-	const { id } = await db.addWarning(
+	const { id } = db.addWarning(
 		interaction.guildId,
 		targetUser.id,
 		interaction.user.id,
 		reason,
 	);
-	const count = await db.getActiveWarningCount(interaction.guildId, targetUser.id);
+	const count = db.getActiveWarningCount(interaction.guildId, targetUser.id);
 
-	await db.logAction(
+	db.logAction(
 		interaction.guildId,
 		ActionTypes.WARN,
 		targetUser.id,

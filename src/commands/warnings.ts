@@ -14,9 +14,9 @@ export const data = new SlashCommandBuilder()
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
 	if (!interaction.guildId) return;
 
-	const targetUser = interaction.options.getUser('user');
+	const targetUser = interaction.options.getUser('user', true);
 
-	const warnings = await db.getWarnings(interaction.guildId, targetUser.id, true);
+	const warnings = db.getWarnings(interaction.guildId, targetUser.id, true);
 
 	if (warnings.length === 0) {
 		return interaction.reply({
