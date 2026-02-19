@@ -24,7 +24,10 @@ db.initialize();
 
 await loadCommands(client);
 await loadEvents(client);
-await registerCommands();
+
+if (process.env.REGISTER_COMMANDS === 'true') {
+	await registerCommands();
+}
 
 await client.login(env.DISCORD_TOKEN);
 
