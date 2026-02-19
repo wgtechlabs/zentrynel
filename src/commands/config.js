@@ -124,7 +124,7 @@ export const data = new SlashCommandBuilder()
 			.addStringOption((option) =>
 				option
 					.setName('minage')
-					.setDescription('Minimum account age (e.g. 24h, 2d, 30m)')
+					.setDescription('Minimum account age (e.g. 1h, 24h, 2d)')
 					.setMaxLength(10),
 			)
 			.addIntegerOption((option) =>
@@ -445,14 +445,17 @@ async function handleVerificationRules(interaction) {
 	let minAgeHours = null;
 	if (minAgeRaw !== null) {
 		const ms = parseDuration(minAgeRaw);
-		if (ms === null || ms < 60_000) {
+		if (ms === null || ms < 3_600_000) {
 			return interaction.reply({
-				embeds: [errorEmbed('Invalid duration. Use a format like `24h`, `2d`, or `30m`.')],
+				embeds: [
+					errorEmbed(
+						'Invalid duration. Minimum is 1 hour. Use a format like `1h`, `24h`, or `2d`.',
+					),
+				],
 				flags: [MessageFlags.Ephemeral],
 			});
 		}
 		minAgeHours = Math.round(ms / 3_600_000);
-		if (minAgeHours < 1) minAgeHours = 1;
 		if (minAgeHours > 8760) {
 			return interaction.reply({
 				embeds: [errorEmbed('Minimum account age cannot exceed 365 days.')],
