@@ -504,7 +504,7 @@ function evaluateRisk(member, minAccountAgeHours) {
 	const accountAgeHours = getAccountAgeHours(member.user.createdTimestamp);
 	if (accountAgeHours < minAccountAgeHours) {
 		score += 2;
-		reasons.push(`Account is only ${accountAgeHours}h old (minimum ${minAccountAgeHours}h).`);
+		reasons.push(`Account is only ${accountAgeHours}h old (minimum ${minAccountAgeHours}h).`); // hours kept for internal precision
 	}
 
 	if (!member.user.avatar) {

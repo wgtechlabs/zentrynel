@@ -11,6 +11,7 @@ import {
 import { Colors } from '../config/constants.js';
 import { db } from '../db/index.js';
 import { errorEmbed, successEmbed } from '../utils/embeds.js';
+import { formatDuration, parseDuration } from '../utils/time.js';
 
 export const data = new SlashCommandBuilder()
 	.setName('config')
@@ -118,12 +119,11 @@ export const data = new SlashCommandBuilder()
 		sub
 			.setName('verificationrules')
 			.setDescription('Set automated verification thresholds')
-			.addIntegerOption((option) =>
+			.addStringOption((option) =>
 				option
 					.setName('minage')
-					.setDescription('Minimum account age in hours')
-					.setMinValue(1)
-					.setMaxValue(8760),
+					.setDescription('Minimum account age (e.g. 24h, 2d, 30m)')
+					.setMaxLength(10),
 			)
 			.addIntegerOption((option) =>
 				option
@@ -213,7 +213,7 @@ async function handleView(interaction) {
 			},
 			{
 				name: 'Verification Rules',
-				value: `Min account age: **${config.verification_min_account_age_hours}h**\nMax attempts: **${config.verification_max_attempts}**`,
+				value: `Min account age: **${formatDuration(config.verification_min_account_age_hours * 3_600_000)}**\nMax attempts: **${config.verification_max_attempts}**`,
 				inline: true,
 			},
 			{ name: '\u200b', value: '\u200b', inline: true },
@@ -429,20 +429,39 @@ async function handleVerificationRoles(interaction) {
 }
 
 async function handleVerificationRules(interaction) {
-	const minAge = interaction.options.getInteger('minage');
+	const minAgeRaw = interaction.options.getString('minage');
 	const maxAttempts = interaction.options.getInteger('maxattempts');
 
-	if (minAge === null && maxAttempts === null) {
+	if (minAgeRaw === null && maxAttempts === null) {
 		return interaction.reply({
 			embeds: [errorEmbed('Provide at least one verification rule to update.')],
 			flags: [MessageFlags.Ephemeral],
 		});
 	}
 
+	let minAgeHours = null;
+	if (minAgeRaw !== null) {
+		const ms = parseDuration(minAgeRaw);
+		if (ms === null || ms < 60_000) {
+			return interaction.reply({
+				embeds: [errorEmbed('Invalid duration. Use a format like `24h`, `2d`, or `30m`.')],
+				flags: [MessageFlags.Ephemeral],
+			});
+		}
+		minAgeHours = Math.round(ms / 3_600_000);
+		if (minAgeHours < 1) minAgeHours = 1;
+		if (minAgeHours > 8760) {
+			return interaction.reply({
+				embeds: [errorEmbed('Minimum account age cannot exceed 365 days.')],
+				flags: [MessageFlags.Ephemeral],
+			});
+		}
+	}
+
 	const config = db.getGuildConfig(interaction.guildId);
 
 	await db.upsertGuildConfig(interaction.guildId, {
-		verification_min_account_age_hours: minAge ?? config.verification_min_account_age_hours,
+		verification_min_account_age_hours: minAgeHours ?? config.verification_min_account_age_hours,
 		verification_max_attempts: maxAttempts ?? config.verification_max_attempts,
 	});
 
@@ -451,7 +470,7 @@ async function handleVerificationRules(interaction) {
 		embeds: [
 			successEmbed(
 				'Verification Rules Updated',
-				`Min account age: **${updated.verification_min_account_age_hours}h**\nMax attempts: **${updated.verification_max_attempts}**`,
+				`Min account age: **${formatDuration(updated.verification_min_account_age_hours * 3_600_000)}**\nMax attempts: **${updated.verification_max_attempts}**`,
 			),
 		],
 	});
