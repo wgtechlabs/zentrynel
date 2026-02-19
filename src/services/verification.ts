@@ -247,6 +247,20 @@ async function handleVerificationStart(interaction: ButtonInteraction): Promise<
 		return;
 	}
 
+	// Rate limit: enforce a cooldown between verification attempts
+	if (state?.last_challenge_at) {
+		const cooldownMs = 30_000;
+		const elapsed = Date.now() - new Date(state.last_challenge_at).getTime();
+		if (elapsed < cooldownMs) {
+			const remaining = Math.ceil((cooldownMs - elapsed) / 1000);
+			await interaction.reply({
+				content: `Please wait ${remaining} second${remaining !== 1 ? 's' : ''} before trying again.`,
+				flags: [MessageFlags.Ephemeral],
+			});
+			return;
+		}
+	}
+
 	const risk = evaluateRisk(member, Number(config.verification_min_account_age_hours));
 	if (risk.manualRequired) {
 		const queued = await queueManualReview(interaction.guild, member, config, {
