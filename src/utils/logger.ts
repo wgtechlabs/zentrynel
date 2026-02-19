@@ -1,23 +1,25 @@
-function timestamp(): string {
-	return new Date().toISOString().replace('T', ' ').replace('Z', '');
-}
+import { LogEngine } from '@wgtechlabs/log-engine';
 
+/**
+ * Application logger powered by @wgtechlabs/log-engine.
+ *
+ * Log mode is auto-configured based on NODE_ENV:
+ *   development → DEBUG | production → INFO | test → ERROR
+ */
 export const logger = {
 	info(msg: string, ...args: unknown[]): void {
-		console.log(`[${timestamp()}] [INFO] ${msg}`, ...args);
+		LogEngine.info(msg, args.length === 1 ? args[0] : args.length > 1 ? args : undefined);
 	},
 
 	warn(msg: string, ...args: unknown[]): void {
-		console.warn(`[${timestamp()}] [WARN] ${msg}`, ...args);
+		LogEngine.warn(msg, args.length === 1 ? args[0] : args.length > 1 ? args : undefined);
 	},
 
 	error(msg: string, ...args: unknown[]): void {
-		console.error(`[${timestamp()}] [ERROR] ${msg}`, ...args);
+		LogEngine.error(msg, args.length === 1 ? args[0] : args.length > 1 ? args : undefined);
 	},
 
 	debug(msg: string, ...args: unknown[]): void {
-		if (process.env.NODE_ENV !== 'production') {
-			console.log(`[${timestamp()}] [DEBUG] ${msg}`, ...args);
-		}
+		LogEngine.debug(msg, args.length === 1 ? args[0] : args.length > 1 ? args : undefined);
 	},
 };
