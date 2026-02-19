@@ -2,6 +2,34 @@ import type { Database } from 'bun:sqlite';
 
 export const CURRENT_VERSION = 2;
 
+interface TableInfoRow {
+	cid: number;
+	name: string;
+	type: string;
+	notnull: number;
+	dflt_value: unknown;
+	pk: number;
+}
+
+interface SchemaVersionRow {
+	version: number;
+}
+
+function ensureColumnsExist(
+	database: Database,
+	tableName: string,
+	requiredColumns: string[],
+): void {
+	const columns = database.query(`PRAGMA table_info(${tableName})`).all() as TableInfoRow[];
+	const names = new Set(columns.map((column) => column.name));
+
+	for (const definition of requiredColumns) {
+		const columnName = definition.split(' ')[0] ?? '';
+		if (!columnName || names.has(columnName)) continue;
+		database.run(`ALTER TABLE ${tableName} ADD COLUMN ${definition}`);
+	}
+}
+
 export function createTables(database: Database): void {
 	database.run(`
 		CREATE TABLE IF NOT EXISTS guild_config (
@@ -91,24 +119,7 @@ export function createTables(database: Database): void {
 		)
 	`);
 
-	ensureGuildConfigColumns(database);
-	ensureVerificationStateColumns(database);
-
-	const row = database
-		.query('SELECT version FROM schema_version ORDER BY version DESC LIMIT 1')
-		.get();
-	if (!row) {
-		database.run('INSERT INTO schema_version (version) VALUES (?)', [CURRENT_VERSION]);
-	} else if (row.version < CURRENT_VERSION) {
-		database.run('INSERT INTO schema_version (version) VALUES (?)', [CURRENT_VERSION]);
-	}
-}
-
-function ensureGuildConfigColumns(database: Database): void {
-	const columns = database.query('PRAGMA table_info(guild_config)').all();
-	const names = new Set(columns.map((column) => column.name));
-
-	const requiredColumns = [
+	ensureColumnsExist(database, 'guild_config', [
 		'verify_channel_id TEXT',
 		'review_channel_id TEXT',
 		'verified_role_id TEXT',
@@ -116,24 +127,17 @@ function ensureGuildConfigColumns(database: Database): void {
 		'verification_enabled INTEGER NOT NULL DEFAULT 0',
 		'verification_min_account_age_hours INTEGER NOT NULL DEFAULT 24',
 		'verification_max_attempts INTEGER NOT NULL DEFAULT 3',
-	];
+	]);
+	ensureColumnsExist(database, 'verification_state', [
+		'invite_code TEXT',
+	]);
 
-	for (const definition of requiredColumns) {
-		const columnName = definition.split(' ')[0];
-		if (names.has(columnName)) continue;
-		database.run(`ALTER TABLE guild_config ADD COLUMN ${definition}`);
-	}
-}
-
-function ensureVerificationStateColumns(database: Database): void {
-	const columns = database.query('PRAGMA table_info(verification_state)').all();
-	const names = new Set(columns.map((column) => column.name));
-
-	const requiredColumns = ['invite_code TEXT'];
-
-	for (const definition of requiredColumns) {
-		const columnName = definition.split(' ')[0];
-		if (names.has(columnName)) continue;
-		database.run(`ALTER TABLE verification_state ADD COLUMN ${definition}`);
+	const row = database
+		.query('SELECT version FROM schema_version ORDER BY version DESC LIMIT 1')
+		.get() as SchemaVersionRow | undefined;
+	if (!row) {
+		database.run('INSERT INTO schema_version (version) VALUES (?)', [CURRENT_VERSION]);
+	} else if (row.version < CURRENT_VERSION) {
+		database.run('INSERT INTO schema_version (version) VALUES (?)', [CURRENT_VERSION]);
 	}
 }

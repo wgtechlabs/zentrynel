@@ -8,7 +8,18 @@ import { createTables } from './schema.js';
 
 let database: Database | null = null;
 
+function getDatabase(): Database {
+	if (!database) {
+		throw new Error('Database not initialized. Call initialize() first.');
+	}
+	return database;
+}
+
 export function initialize(): void {
+	if (database) {
+		close();
+	}
+
 	const dbDir = dirname(env.DB_PATH);
 
 	if (!existsSync(dbDir)) {
@@ -47,8 +58,8 @@ const defaultConfig: Omit<GuildConfig, 'guild_id' | 'created_at' | 'updated_at'>
 };
 
 export function getGuildConfig(guildId: string): GuildConfig {
-	const row = database
-		?.query('SELECT * FROM guild_config WHERE guild_id = ?')
+	const row = getDatabase()
+		.query('SELECT * FROM guild_config WHERE guild_id = ?')
 		.get(guildId) as GuildConfig | null;
 	return row ?? { guild_id: guildId, ...defaultConfig };
 }
@@ -57,7 +68,7 @@ export function upsertGuildConfig(guildId: string, config: Partial<GuildConfig>)
 	const current = getGuildConfig(guildId);
 	const merged = { ...current, ...config };
 
-	database
+	getDatabase()
 		?.query(`
 			INSERT INTO guild_config (
 				guild_id,
@@ -128,7 +139,7 @@ export function upsertGuildConfig(guildId: string, config: Partial<GuildConfig>)
 }
 
 export function deleteGuildConfig(guildId: string): void {
-	database?.query('DELETE FROM guild_config WHERE guild_id = ?').run(guildId);
+	getDatabase().query('DELETE FROM guild_config WHERE guild_id = ?').run(guildId);
 }
 
 // --- Verification ---
@@ -150,8 +161,8 @@ const defaultVerificationState: Omit<
 
 export function getVerificationState(guildId: string, userId: string): VerificationState | null {
 	return (
-		(database
-			?.query('SELECT * FROM verification_state WHERE guild_id = ? AND user_id = ?')
+		(getDatabase()
+			.query('SELECT * FROM verification_state WHERE guild_id = ? AND user_id = ?')
 			.get(guildId, userId) as VerificationState | null) ?? null
 	);
 }
@@ -164,8 +175,8 @@ export function upsertVerificationState(
 	const current = getVerificationState(guildId, userId);
 	const merged = { ...defaultVerificationState, ...(current ?? {}), ...state };
 
-	database
-		?.query(`
+	getDatabase()
+		.query(`
 			INSERT INTO verification_state (
 				guild_id,
 				user_id,
@@ -222,8 +233,8 @@ export function upsertVerificationState(
 }
 
 export function deleteVerificationState(guildId: string, userId: string): void {
-	database
-		?.query('DELETE FROM verification_state WHERE guild_id = ? AND user_id = ?')
+	getDatabase()
+		.query('DELETE FROM verification_state WHERE guild_id = ? AND user_id = ?')
 		.run(guildId, userId);
 }
 
@@ -235,47 +246,50 @@ export function addWarning(
 	moderatorId: string,
 	reason?: string | null,
 ): { id: number | bigint } {
-	const result = database
-		?.query('INSERT INTO warnings (guild_id, user_id, moderator_id, reason) VALUES (?, ?, ?, ?)')
+	const result = getDatabase()
+		.query('INSERT INTO warnings (guild_id, user_id, moderator_id, reason) VALUES (?, ?, ?, ?)')
 		.run(guildId, userId, moderatorId, reason || 'No reason provided');
-	return { id: result?.lastInsertRowid ?? 0 };
+	if (!result?.lastInsertRowid) {
+		throw new Error(`Failed to insert warning for guild ${guildId}, user ${userId}`);
+	}
+	return { id: result.lastInsertRowid };
 }
 
 export function getWarnings(guildId: string, userId: string, activeOnly = true): Warning[] {
 	if (activeOnly) {
 		return (
-			(database
-				?.query(
+			(getDatabase()
+				.query(
 					'SELECT * FROM warnings WHERE guild_id = ? AND user_id = ? AND active = 1 ORDER BY created_at DESC',
 				)
 				.all(guildId, userId) as Warning[]) ?? []
 		);
 	}
 	return (
-		(database
-			?.query('SELECT * FROM warnings WHERE guild_id = ? AND user_id = ? ORDER BY created_at DESC')
+		(getDatabase()
+			.query('SELECT * FROM warnings WHERE guild_id = ? AND user_id = ? ORDER BY created_at DESC')
 			.all(guildId, userId) as Warning[]) ?? []
 	);
 }
 
 export function getActiveWarningCount(guildId: string, userId: string): number {
-	const row = database
-		?.query(
+	const row = getDatabase()
+		.query(
 			'SELECT COUNT(*) as count FROM warnings WHERE guild_id = ? AND user_id = ? AND active = 1',
 		)
 		.get(guildId, userId) as { count: number } | undefined;
 	return row?.count ?? 0;
 }
 
-export function deactivateWarning(guildId: string, warningId: number): void {
-	database
-		?.query('UPDATE warnings SET active = 0 WHERE id = ? AND guild_id = ?')
+export function deactivateWarning(guildId: string, warningId: number | bigint): void {
+	getDatabase()
+		.query('UPDATE warnings SET active = 0 WHERE id = ? AND guild_id = ?')
 		.run(warningId, guildId);
 }
 
 export function clearWarnings(guildId: string, userId: string): void {
-	database
-		?.query('UPDATE warnings SET active = 0 WHERE guild_id = ? AND user_id = ?')
+	getDatabase()
+		.query('UPDATE warnings SET active = 0 WHERE guild_id = ? AND user_id = ?')
 		.run(guildId, userId);
 }
 
@@ -290,8 +304,8 @@ export function logAction(
 	duration?: number | null,
 	metadata?: unknown,
 ): { id: number | bigint } {
-	const result = database
-		?.query(
+	const result = getDatabase()
+		.query(
 			'INSERT INTO mod_actions (guild_id, action_type, user_id, moderator_id, reason, duration, metadata) VALUES (?, ?, ?, ?, ?, ?, ?)',
 		)
 		.run(
@@ -309,16 +323,16 @@ export function logAction(
 export function getActions(guildId: string, userId?: string | null, limit = 10): ModAction[] {
 	if (userId) {
 		return (
-			(database
-				?.query(
+			(getDatabase()
+				.query(
 					'SELECT * FROM mod_actions WHERE guild_id = ? AND user_id = ? ORDER BY created_at DESC LIMIT ?',
 				)
 				.all(guildId, userId, limit) as ModAction[]) ?? []
 		);
 	}
 	return (
-		(database
-			?.query('SELECT * FROM mod_actions WHERE guild_id = ? ORDER BY created_at DESC LIMIT ?')
+		(getDatabase()
+			.query('SELECT * FROM mod_actions WHERE guild_id = ? ORDER BY created_at DESC LIMIT ?')
 			.all(guildId, limit) as ModAction[]) ?? []
 	);
 }

@@ -30,7 +30,7 @@ export const db = {
 		driver.getWarnings(guildId, userId, activeOnly),
 	getActiveWarningCount: (guildId: string, userId: string): number =>
 		driver.getActiveWarningCount(guildId, userId),
-	deactivateWarning: (guildId: string, warningId: number): void =>
+	deactivateWarning: (guildId: string, warningId: number | bigint): void =>
 		driver.deactivateWarning(guildId, warningId),
 	clearWarnings: (guildId: string, userId: string): void => driver.clearWarnings(guildId, userId),
 
