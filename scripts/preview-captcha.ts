@@ -61,8 +61,8 @@ function paintCanvasNoise(
 }
 
 function renderCaptchaImage(text: string): Buffer {
-	const width = 320;
-	const height = 100;
+	const width = 480;
+	const height = 140;
 	const canvas = createCanvas(width, height);
 	const ctx = canvas.getContext('2d');
 
@@ -89,50 +89,8 @@ function renderCaptchaImage(text: string): Buffer {
 		ctx.restore();
 	}
 
-	// Draw actual characters — faded to ~80% with heavy distortion
-	const chars = text.split('');
-	const charSpacing = 32; // large spacing
-	const totalWidth = chars.length * charSpacing;
-	let x = (width - totalWidth) / 2;
-
-	// Wavy baseline using sine wave (25% more amplitude)
-	const waveAmplitude = randomInt(8, 15);
-	const waveFrequency = randomInt(15, 30) / 1000;
-	const wavePhase = randomInt(0, 628) / 100; // 0 to 2π
-
-	for (let i = 0; i < chars.length; i++) {
-		const char = chars[i];
-		ctx.save();
-
-		// 25% more rotation (±31°)
-		const angle = (randomInt(-31, 32) * Math.PI) / 180;
-
-		// Wavy y-offset via sine + stronger jitter
-		const sineOffset = Math.sin(x * waveFrequency + wavePhase) * waveAmplitude;
-		const yOffset = sineOffset + randomInt(-5, 6);
-
-		ctx.translate(x + charSpacing / 2, height / 2 + yOffset);
-		ctx.rotate(angle);
-
-		// Wide font size variation per character (28-48px)
-		const charSize = randomInt(28, 49);
-		ctx.font = `${charSize}px monospace`; // NOT bold (decoys are bold)
-
-		// Faded to ~80%: lower lightness + reduced opacity
-		const hue = randomInt(0, 360);
-		ctx.fillStyle = `hsla(${hue}, 60%, 65%, 0.55)`;
-		ctx.textAlign = 'center';
-		ctx.textBaseline = 'middle';
-
-		// Offset shadow/outline for depth confusion
-		ctx.strokeStyle = `hsla(${(hue + 180) % 360}, 40%, 25%, 0.3)`;
-		ctx.lineWidth = 2;
-		ctx.strokeText(char, randomInt(-2, 3), randomInt(-2, 3));
-
-		ctx.fillText(char, 0, 0);
-		ctx.restore();
-		x += charSpacing;
-	}
+	// Interference lines drawn BEFORE the answer text so characters render on top
+	// and survive Discord's image compression
 
 	// Strong bezier interference lines through the text zone
 	const yMinBezier = Math.floor(height * 0.15);
@@ -172,6 +130,51 @@ function renderCaptchaImage(text: string): Buffer {
 		ctx.moveTo(0, y + randomInt(-8, 9));
 		ctx.lineTo(width, y + randomInt(-8, 9));
 		ctx.stroke();
+	}
+
+	// Draw actual characters — rendered AFTER interference so they stay readable
+	const chars = text.split('');
+	const charSpacing = 42;
+	const totalWidth = chars.length * charSpacing;
+	let x = (width - totalWidth) / 2;
+
+	// Wavy baseline using sine wave (25% more amplitude)
+	const waveAmplitude = randomInt(8, 15);
+	const waveFrequency = randomInt(15, 30) / 1000;
+	const wavePhase = randomInt(0, 628) / 100; // 0 to 2π
+
+	for (let i = 0; i < chars.length; i++) {
+		const char = chars[i];
+		ctx.save();
+
+		// 25% more rotation (±31°)
+		const angle = (randomInt(-31, 32) * Math.PI) / 180;
+
+		// Wavy y-offset via sine + stronger jitter
+		const sineOffset = Math.sin(x * waveFrequency + wavePhase) * waveAmplitude;
+		const yOffset = sineOffset + randomInt(-5, 6);
+
+		ctx.translate(x + charSpacing / 2, height / 2 + yOffset);
+		ctx.rotate(angle);
+
+		// Wide font size variation per character (28-48px)
+		const charSize = randomInt(28, 49);
+		ctx.font = `${charSize}px monospace`; // NOT bold (decoys are bold)
+
+		// Visible enough to survive Discord compression while still being lighter than decoys
+		const hue = randomInt(0, 360);
+		ctx.fillStyle = `hsla(${hue}, 60%, 65%, 0.70)`;
+		ctx.textAlign = 'center';
+		ctx.textBaseline = 'middle';
+
+		// Offset shadow/outline for depth confusion
+		ctx.strokeStyle = `hsla(${(hue + 180) % 360}, 40%, 25%, 0.4)`;
+		ctx.lineWidth = 2;
+		ctx.strokeText(char, randomInt(-2, 3), randomInt(-2, 3));
+
+		ctx.fillText(char, 0, 0);
+		ctx.restore();
+		x += charSpacing;
 	}
 
 	return canvas.toBuffer('image/png');

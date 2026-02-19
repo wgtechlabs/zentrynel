@@ -104,8 +104,8 @@ function paintCanvasNoise(
 }
 
 function renderCaptchaImage(text: string): Buffer {
-	const width = 320;
-	const height = 100;
+	const width = 480;
+	const height = 140;
 	const canvas = createCanvas(width, height);
 	const ctx = canvas.getContext('2d');
 
@@ -132,9 +132,52 @@ function renderCaptchaImage(text: string): Buffer {
 		ctx.restore();
 	}
 
-	// Draw actual characters — faded to ~80% with heavy distortion
+	// Interference lines drawn BEFORE the answer text so characters render on top
+	// and survive Discord's image compression
+
+	// Strong bezier interference lines through the text zone
+	const yMinBezier = Math.floor(height * 0.15);
+	const yMaxBezier = Math.max(yMinBezier + 1, Math.floor(height * 0.85));
+	const hMinBezier = Math.floor(height * 0.05);
+	const hMaxBezier = Math.max(hMinBezier + 1, Math.floor(height * 0.95));
+	const wMin15 = Math.floor(width * 0.15);
+	const wMax45 = Math.max(wMin15 + 1, Math.floor(width * 0.45));
+	const wMin55 = Math.floor(width * 0.55);
+	const wMax85 = Math.max(wMin55 + 1, Math.floor(width * 0.85));
+	for (let i = 0; i < 6; i++) {
+		ctx.strokeStyle = `hsla(${randomInt(0, 360)}, 80%, 60%, ${(randomInt(40, 70) / 100).toFixed(2)})`;
+		ctx.lineWidth = randomInt(2, 4);
+		ctx.beginPath();
+		const yStart = randomInt(yMinBezier, yMaxBezier);
+		const yEnd = randomInt(yMinBezier, yMaxBezier);
+		ctx.moveTo(randomInt(0, 20), yStart);
+		ctx.bezierCurveTo(
+			randomInt(wMin15, wMax45),
+			randomInt(hMinBezier, hMaxBezier),
+			randomInt(wMin55, wMax85),
+			randomInt(hMinBezier, hMaxBezier),
+			randomInt(width - 20, width),
+			yEnd,
+		);
+		ctx.stroke();
+	}
+
+	// Grid-like interference (breaks character segmentation)
+	const yMinGrid = Math.floor(height * 0.2);
+	const yMaxGrid = Math.max(yMinGrid + 1, Math.floor(height * 0.8));
+	for (let i = 0; i < 5; i++) {
+		ctx.strokeStyle = `hsla(${randomInt(0, 360)}, 60%, 55%, ${(randomInt(20, 40) / 100).toFixed(2)})`;
+		ctx.lineWidth = randomInt(1, 3);
+		ctx.beginPath();
+		const y = randomInt(yMinGrid, yMaxGrid);
+		ctx.moveTo(0, y + randomInt(-8, 9));
+		ctx.lineTo(width, y + randomInt(-8, 9));
+		ctx.stroke();
+	}
+
+	// Draw actual characters — rendered AFTER interference so they stay readable
 	const chars = text.split('');
-	const charSpacing = 32; // large spacing
+	const charSpacing = 42;
 	const totalWidth = chars.length * charSpacing;
 	let x = (width - totalWidth) / 2;
 
@@ -161,50 +204,20 @@ function renderCaptchaImage(text: string): Buffer {
 		const charSize = randomInt(28, 49);
 		ctx.font = `${charSize}px monospace`; // NOT bold (decoys are bold)
 
-		// Faded to ~80%: lower lightness + reduced opacity
+		// Visible enough to survive Discord compression while still being lighter than decoys
 		const hue = randomInt(0, 360);
-		ctx.fillStyle = `hsla(${hue}, 60%, 65%, 0.55)`;
+		ctx.fillStyle = `hsla(${hue}, 60%, 65%, 0.70)`;
 		ctx.textAlign = 'center';
 		ctx.textBaseline = 'middle';
 
 		// Offset shadow/outline for depth confusion
-		ctx.strokeStyle = `hsla(${(hue + 180) % 360}, 40%, 25%, 0.3)`;
+		ctx.strokeStyle = `hsla(${(hue + 180) % 360}, 40%, 25%, 0.4)`;
 		ctx.lineWidth = 2;
 		ctx.strokeText(char, randomInt(-2, 3), randomInt(-2, 3));
 
 		ctx.fillText(char, 0, 0);
 		ctx.restore();
 		x += charSpacing;
-	}
-
-	// Strong bezier interference lines through the text zone
-	for (let i = 0; i < 6; i++) {
-		ctx.strokeStyle = `hsla(${randomInt(0, 360)}, 80%, 60%, ${(randomInt(40, 70) / 100).toFixed(2)})`;
-		ctx.lineWidth = randomInt(2, 4);
-		ctx.beginPath();
-		const yStart = randomInt(height * 0.15, height * 0.85);
-		const yEnd = randomInt(height * 0.15, height * 0.85);
-		ctx.moveTo(randomInt(0, 20), yStart);
-		ctx.bezierCurveTo(
-			randomInt(width * 0.15, width * 0.45),
-			randomInt(height * 0.05, height * 0.95),
-			randomInt(width * 0.55, width * 0.85),
-			randomInt(height * 0.05, height * 0.95),
-			randomInt(width - 20, width),
-			yEnd,
-		);
-		ctx.stroke();
-	}
-
-	// Grid-like interference (breaks character segmentation)
-	for (let i = 0; i < 5; i++) {
-		ctx.strokeStyle = `hsla(${randomInt(0, 360)}, 60%, 55%, ${(randomInt(20, 40) / 100).toFixed(2)})`;
-		ctx.lineWidth = randomInt(1, 3);
-		ctx.beginPath();
-		const y = randomInt(height * 0.2, height * 0.8);
-		ctx.moveTo(0, y + randomInt(-8, 9));
-		ctx.lineTo(width, y + randomInt(-8, 9));
-		ctx.stroke();
 	}
 
 	return canvas.toBuffer('image/png');
