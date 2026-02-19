@@ -145,7 +145,7 @@ function renderCaptchaImage(text: string): Buffer {
 	const wMin55 = Math.floor(width * 0.55);
 	const wMax85 = Math.max(wMin55 + 1, Math.floor(width * 0.85));
 	for (let i = 0; i < 6; i++) {
-		ctx.strokeStyle = `hsla(${randomInt(0, 360)}, 80%, 60%, ${(randomInt(40, 70) / 100).toFixed(2)})`;
+		ctx.strokeStyle = `hsla(${randomInt(0, 360)}, 70%, 55%, ${(randomInt(25, 45) / 100).toFixed(2)})`;
 		ctx.lineWidth = randomInt(2, 4);
 		ctx.beginPath();
 		const yStart = randomInt(yMinBezier, yMaxBezier);
@@ -166,7 +166,7 @@ function renderCaptchaImage(text: string): Buffer {
 	const yMinGrid = Math.floor(height * 0.2);
 	const yMaxGrid = Math.max(yMinGrid + 1, Math.floor(height * 0.8));
 	for (let i = 0; i < 5; i++) {
-		ctx.strokeStyle = `hsla(${randomInt(0, 360)}, 60%, 55%, ${(randomInt(20, 40) / 100).toFixed(2)})`;
+		ctx.strokeStyle = `hsla(${randomInt(0, 360)}, 50%, 50%, ${(randomInt(15, 30) / 100).toFixed(2)})`;
 		ctx.lineWidth = randomInt(1, 3);
 		ctx.beginPath();
 		const y = randomInt(yMinGrid, yMaxGrid);
@@ -204,18 +204,28 @@ function renderCaptchaImage(text: string): Buffer {
 		const charSize = randomInt(28, 49);
 		ctx.font = `${charSize}px monospace`; // NOT bold (decoys are bold)
 
-		// Visible enough to survive Discord compression while still being lighter than decoys
 		const hue = randomInt(0, 360);
-		ctx.fillStyle = `hsla(${hue}, 60%, 65%, 0.70)`;
+
+		// Dark backing behind each character for contrast against noise
+		ctx.shadowColor = `hsla(${hue}, 20%, 10%, 0.6)`;
+		ctx.shadowBlur = 4;
+
+		// Strong enough to survive Discord compression while still lighter than bold decoys
+		ctx.fillStyle = `hsla(${hue}, 55%, 75%, 0.85)`;
 		ctx.textAlign = 'center';
 		ctx.textBaseline = 'middle';
 
 		// Offset shadow/outline for depth confusion
-		ctx.strokeStyle = `hsla(${(hue + 180) % 360}, 40%, 25%, 0.4)`;
+		ctx.strokeStyle = `hsla(${(hue + 180) % 360}, 30%, 20%, 0.5)`;
 		ctx.lineWidth = 2;
 		ctx.strokeText(char, randomInt(-2, 3), randomInt(-2, 3));
 
 		ctx.fillText(char, 0, 0);
+
+		// Reset shadow so it doesn't affect subsequent draws
+		ctx.shadowColor = 'transparent';
+		ctx.shadowBlur = 0;
+
 		ctx.restore();
 		x += charSpacing;
 	}
@@ -270,34 +280,50 @@ export async function handleVerificationInteraction(interaction: Interaction): P
 }
 
 async function handleVerificationStart(interaction: ButtonInteraction): Promise<void> {
+	const fromEphemeral = interaction.message.flags.has(MessageFlags.Ephemeral);
+
+	/** Reply with a new ephemeral or update the existing one in place */
+	const respond = async (options: {
+		content?: string;
+		embeds?: EmbedBuilder[];
+		components?: ActionRowBuilder<ButtonBuilder>[];
+		files?: AttachmentBuilder[];
+	}) => {
+		if (fromEphemeral) {
+			await interaction.update({
+				content: options.content ?? null,
+				embeds: options.embeds ?? [],
+				components: options.components ?? [],
+				files: options.files ?? [],
+			});
+		} else {
+			await interaction.reply({ ...options, flags: [MessageFlags.Ephemeral] });
+		}
+	};
+
 	if (!interaction.inGuild()) {
-		await interaction.reply({
-			content: 'Verification is only available in a server.',
-			flags: [MessageFlags.Ephemeral],
-		});
+		await respond({ content: 'Verification is only available in a server.' });
 		return;
 	}
 
 	const config = db.getGuildConfig(interaction.guildId);
 	const configError = validateVerificationConfig(config);
 	if (configError) {
-		await interaction.reply({ content: configError, flags: [MessageFlags.Ephemeral] });
+		await respond({ content: configError });
 		return;
 	}
 
 	if (config.verify_channel_id && interaction.channelId !== config.verify_channel_id) {
-		await interaction.reply({
+		await respond({
 			content: `Please use verification in <#${config.verify_channel_id}>.`,
-			flags: [MessageFlags.Ephemeral],
 		});
 		return;
 	}
 
 	const member = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
 	if (!member) {
-		await interaction.reply({
+		await respond({
 			content: 'Unable to load your server membership. Please try again.',
-			flags: [MessageFlags.Ephemeral],
 		});
 		return;
 	}
@@ -310,18 +336,14 @@ async function handleVerificationStart(interaction: ButtonInteraction): Promise<
 			review_message_id: null,
 			manual_reason: null,
 		});
-		await interaction.reply({
-			content: 'You are already verified.',
-			flags: [MessageFlags.Ephemeral],
-		});
+		await respond({ content: 'You are already verified.' });
 		return;
 	}
 
 	const state = db.getVerificationState(interaction.guildId, interaction.user.id);
 	if (state?.status === 'MANUAL_REVIEW') {
-		await interaction.reply({
+		await respond({
 			content: 'Your verification is already in the moderator review queue.',
-			flags: [MessageFlags.Ephemeral],
 		});
 		return;
 	}
@@ -332,9 +354,8 @@ async function handleVerificationStart(interaction: ButtonInteraction): Promise<
 		const elapsed = Date.now() - new Date(state.last_challenge_at).getTime();
 		if (elapsed < cooldownMs) {
 			const remaining = Math.ceil((cooldownMs - elapsed) / 1000);
-			await interaction.reply({
+			await respond({
 				content: `Please wait ${remaining} second${remaining !== 1 ? 's' : ''} before trying again.`,
-				flags: [MessageFlags.Ephemeral],
 			});
 			return;
 		}
@@ -347,11 +368,10 @@ async function handleVerificationStart(interaction: ButtonInteraction): Promise<
 			riskScore: risk.score,
 			triggeredBy: interaction.user,
 		});
-		await interaction.reply({
+		await respond({
 			content: queued.error
 				? `Automated checks flagged your account, but review queue failed: ${queued.error}`
 				: 'Automated checks flagged your account. A moderator will manually review your verification.',
-			flags: [MessageFlags.Ephemeral],
 		});
 		return;
 	}
@@ -362,11 +382,10 @@ async function handleVerificationStart(interaction: ButtonInteraction): Promise<
 			riskScore: risk.score,
 			triggeredBy: interaction.user,
 		});
-		await interaction.reply({
+		await respond({
 			content: queued.error
 				? `You need manual verification, but queue failed: ${queued.error}`
 				: 'You reached the automated attempt limit. A moderator will manually review your verification.',
-			flags: [MessageFlags.Ephemeral],
 		});
 		return;
 	}
@@ -387,7 +406,7 @@ async function handleVerificationStart(interaction: ButtonInteraction): Promise<
 		.setColor(Colors.INFO)
 		.setTitle('Verification Challenge')
 		.setDescription(
-			'Look for the **thin, lighter characters** running across the center of the image. Ignore the **bold characters** near the edges — those are decoys.\n\nClick **Submit Answer** to enter the code.\n\nThis challenge expires in 5 minutes.',
+			'Read the **lighter characters** in the center of the image.\n\nClick **Submit Answer** to enter the code.\n\nThis challenge expires in 5 minutes.',
 		)
 		.setImage('attachment://captcha.png')
 		.setFooter(FOOTER)
@@ -404,11 +423,10 @@ async function handleVerificationStart(interaction: ButtonInteraction): Promise<
 			.setStyle(ButtonStyle.Secondary),
 	);
 
-	await interaction.reply({
+	await respond({
 		embeds: [embed],
 		components: [row],
 		files: [attachment],
-		flags: [MessageFlags.Ephemeral],
 	});
 }
 
@@ -452,20 +470,38 @@ async function handleChallengeAnswer(
 	sessionId: string,
 ): Promise<void> {
 	const session = challengeSessions.get(sessionId);
+	const canUpdate = interaction.isFromMessage();
+	if (canUpdate) await interaction.deferUpdate();
+
+	/** Edit the existing ephemeral in place, or fall back to a new reply */
+	const respond = async (options: {
+		content?: string;
+		embeds?: EmbedBuilder[];
+		components?: ActionRowBuilder<ButtonBuilder>[];
+		files?: AttachmentBuilder[];
+	}) => {
+		if (canUpdate) {
+			await interaction.editReply({
+				content: options.content ?? null,
+				embeds: options.embeds ?? [],
+				components: options.components ?? [],
+				files: options.files ?? [],
+			});
+		} else {
+			await interaction.reply({ ...options, flags: [MessageFlags.Ephemeral] });
+		}
+	};
+
 	if (!session) {
-		await interaction.reply({
+		await respond({
 			content: 'This challenge has expired.',
 			components: [retryRow()],
-			flags: [MessageFlags.Ephemeral],
 		});
 		return;
 	}
 
 	if (session.guildId !== interaction.guildId || session.userId !== interaction.user.id) {
-		await interaction.reply({
-			content: 'This challenge belongs to another member.',
-			flags: [MessageFlags.Ephemeral],
-		});
+		await respond({ content: 'This challenge belongs to another member.' });
 		return;
 	}
 
@@ -473,14 +509,13 @@ async function handleChallengeAnswer(
 
 	if (Date.now() > session.expiresAt) {
 		const failed = await registerFailedAttempt(interaction, 'Challenge timed out.');
-		await interaction.reply({
+		await respond({
 			content: failed.manualReview
 				? failed.queueError
 					? `Challenge timed out and manual review queue failed: ${failed.queueError}`
 					: 'Challenge timed out. Your verification has been sent to manual moderator review.'
 				: 'Challenge timed out.',
 			components: failed.manualReview ? [] : [retryRow()],
-			flags: [MessageFlags.Ephemeral],
 		});
 		return;
 	}
@@ -489,14 +524,13 @@ async function handleChallengeAnswer(
 	const solveTime = Date.now() - session.createdAt;
 	if (solveTime < MIN_SOLVE_TIME_MS) {
 		const failed = await registerFailedAttempt(interaction, 'Suspicious solve speed detected.');
-		await interaction.reply({
+		await respond({
 			content: failed.manualReview
 				? failed.queueError
 					? `Suspicious activity detected and manual review queue failed: ${failed.queueError}`
 					: 'Suspicious activity detected. Your verification has been sent to manual moderator review.'
 				: 'That was suspiciously fast.',
 			components: failed.manualReview ? [] : [retryRow()],
-			flags: [MessageFlags.Ephemeral],
 		});
 		return;
 	}
@@ -504,14 +538,13 @@ async function handleChallengeAnswer(
 	const userAnswer = interaction.fields.getTextInputValue('answer').trim().toUpperCase();
 	if (userAnswer !== session.answer) {
 		const failed = await registerFailedAttempt(interaction, 'Incorrect challenge answer.');
-		await interaction.reply({
+		await respond({
 			content: failed.manualReview
 				? failed.queueError
 					? `Incorrect answer and manual review queue failed: ${failed.queueError}`
 					: 'Incorrect answer. You reached the retry limit and were sent for manual moderator review.'
 				: 'Incorrect answer.',
 			components: failed.manualReview ? [] : [retryRow()],
-			flags: [MessageFlags.Ephemeral],
 		});
 		return;
 	}
@@ -519,10 +552,7 @@ async function handleChallengeAnswer(
 	// CAPTCHA passed — present the context challenge (phase 2)
 	const member = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
 	if (!member) {
-		await interaction.reply({
-			content: 'Unable to load your server membership. Please try again.',
-			flags: [MessageFlags.Ephemeral],
-		});
+		await respond({ content: 'Unable to load your server membership. Please try again.' });
 		return;
 	}
 
@@ -552,13 +582,16 @@ async function handleChallengeAnswer(
 			.setCustomId(`verify:ctxanswer:${ctxChallenge.sessionId}`)
 			.setLabel('Submit Answer')
 			.setStyle(ButtonStyle.Primary),
+		new ButtonBuilder()
+			.setCustomId('verify:start')
+			.setLabel('New Challenge')
+			.setStyle(ButtonStyle.Secondary),
 	);
 
-	await interaction.reply({
+	await respond({
 		embeds: [embed],
 		components: [row],
 		files: [attachment],
-		flags: [MessageFlags.Ephemeral],
 	});
 }
 
@@ -737,20 +770,38 @@ async function handleContextAnswer(
 	sessionId: string,
 ): Promise<void> {
 	const session = challengeSessions.get(sessionId);
+	const canUpdate = interaction.isFromMessage();
+	if (canUpdate) await interaction.deferUpdate();
+
+	/** Edit the existing ephemeral in place, or fall back to a new reply */
+	const respond = async (options: {
+		content?: string;
+		embeds?: EmbedBuilder[];
+		components?: ActionRowBuilder<ButtonBuilder>[];
+		files?: AttachmentBuilder[];
+	}) => {
+		if (canUpdate) {
+			await interaction.editReply({
+				content: options.content ?? null,
+				embeds: options.embeds ?? [],
+				components: options.components ?? [],
+				files: options.files ?? [],
+			});
+		} else {
+			await interaction.reply({ ...options, flags: [MessageFlags.Ephemeral] });
+		}
+	};
+
 	if (!session) {
-		await interaction.reply({
+		await respond({
 			content: 'This challenge has expired.',
 			components: [retryRow()],
-			flags: [MessageFlags.Ephemeral],
 		});
 		return;
 	}
 
 	if (session.guildId !== interaction.guildId || session.userId !== interaction.user.id) {
-		await interaction.reply({
-			content: 'This challenge belongs to another member.',
-			flags: [MessageFlags.Ephemeral],
-		});
+		await respond({ content: 'This challenge belongs to another member.' });
 		return;
 	}
 
@@ -758,14 +809,13 @@ async function handleContextAnswer(
 
 	if (Date.now() > session.expiresAt) {
 		const failed = await registerFailedAttempt(interaction, 'Challenge timed out.');
-		await interaction.reply({
+		await respond({
 			content: failed.manualReview
 				? failed.queueError
 					? `Challenge timed out and manual review queue failed: ${failed.queueError}`
 					: 'Challenge timed out. Your verification has been sent to manual moderator review.'
 				: 'Challenge timed out.',
 			components: failed.manualReview ? [] : [retryRow()],
-			flags: [MessageFlags.Ephemeral],
 		});
 		return;
 	}
@@ -773,14 +823,13 @@ async function handleContextAnswer(
 	const userAnswer = interaction.fields.getTextInputValue('ctxanswer').trim();
 	if (userAnswer !== session.answer) {
 		const failed = await registerFailedAttempt(interaction, 'Incorrect identity check answer.');
-		await interaction.reply({
+		await respond({
 			content: failed.manualReview
 				? failed.queueError
 					? `Incorrect answer and manual review queue failed: ${failed.queueError}`
 					: 'Incorrect answer. You reached the retry limit and were sent for manual moderator review.'
 				: 'Incorrect answer.',
 			components: failed.manualReview ? [] : [retryRow()],
-			flags: [MessageFlags.Ephemeral],
 		});
 		return;
 	}
@@ -793,18 +842,12 @@ async function handleContextAnswer(
 			? await interaction.client.guilds.fetch(interaction.guildId).catch(() => null)
 			: null);
 	if (!ctxGuild) {
-		await interaction.reply({
-			content: 'Unable to resolve the server. Please try again.',
-			flags: [MessageFlags.Ephemeral],
-		});
+		await respond({ content: 'Unable to resolve the server. Please try again.' });
 		return;
 	}
 	const member = await ctxGuild.members.fetch(interaction.user.id).catch(() => null);
 	if (!member) {
-		await interaction.reply({
-			content: 'Unable to load your server membership. Please try again.',
-			flags: [MessageFlags.Ephemeral],
-		});
+		await respond({ content: 'Unable to load your server membership. Please try again.' });
 		return;
 	}
 
@@ -819,11 +862,10 @@ async function handleContextAnswer(
 			riskScore: 0,
 			triggeredBy: interaction.user,
 		});
-		await interaction.reply({
+		await respond({
 			content: queued.error
 				? `Automated verification passed, but role assignment and manual queue failed: ${queued.error}`
 				: 'Automated verification passed, but role assignment needs moderator review.',
-			flags: [MessageFlags.Ephemeral],
 		});
 		return;
 	}
@@ -854,9 +896,8 @@ async function handleContextAnswer(
 		reason: 'Automated verification approved',
 	});
 
-	await interaction.reply({
+	await respond({
 		content: `Verification complete. You now have <@&${config.verified_role_id}>.`,
-		flags: [MessageFlags.Ephemeral],
 	});
 }
 
