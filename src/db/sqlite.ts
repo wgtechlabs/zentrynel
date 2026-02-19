@@ -59,6 +59,7 @@ export function upsertGuildConfig(guildId: string, config: Partial<GuildConfig>)
 
 	database
 		?.query(`
+			INSERT INTO guild_config (
 				guild_id,
 				log_channel_id,
 				mute_role_id,
