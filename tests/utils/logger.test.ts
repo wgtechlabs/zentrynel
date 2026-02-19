@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { logger } from '../../src/utils/logger.js';
 
 describe('logger', () => {
-	let originalLog;
-	let originalWarn;
-	let originalError;
-	let captured;
+	let originalLog: typeof console.log;
+	let originalWarn: typeof console.warn;
+	let originalError: typeof console.error;
+	let captured: { log: unknown[][]; warn: unknown[][]; error: unknown[][] };
 
 	beforeEach(() => {
 		captured = { log: [], warn: [], error: [] };
