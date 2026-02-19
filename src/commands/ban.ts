@@ -1,4 +1,5 @@
 import { MessageFlags, PermissionFlagsBits, SlashCommandBuilder } from 'discord.js';
+import type { ChatInputCommandInteraction } from 'discord.js';
 import { ActionTypes } from '../config/constants.js';
 import { db } from '../db/index.js';
 import { send as sendModLog } from '../services/modLog.js';
@@ -21,12 +22,14 @@ export const data = new SlashCommandBuilder()
 	)
 	.setDefaultMemberPermissions(PermissionFlagsBits.BanMembers);
 
-export async function execute(interaction) {
+export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
+	if (!interaction.guildId || !interaction.guild) return;
+
 	const targetUser = interaction.options.getUser('user');
 	const reason = interaction.options.getString('reason') || 'No reason provided';
 	const deleteMessageDays = interaction.options.getInteger('delete_messages') || 0;
 
-	const targetMember = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
+	const targetMember = await interaction.guild?.members.fetch(targetUser.id).catch(() => null);
 
 	if (targetMember) {
 		const check = canModerate(interaction, targetMember);
@@ -46,10 +49,10 @@ export async function execute(interaction) {
 	}
 
 	await targetUser
-		.send(`You have been banned from **${interaction.guild.name}**.\n**Reason:** ${reason}`)
+		.send(`You have been banned from **${interaction.guild?.name}**.\n**Reason:** ${reason}`)
 		.catch(() => {});
 
-	await interaction.guild.members.ban(targetUser, {
+	await interaction.guild?.members.ban(targetUser, {
 		reason,
 		deleteMessageSeconds: deleteMessageDays * 86_400,
 	});

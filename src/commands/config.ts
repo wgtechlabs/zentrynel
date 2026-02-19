@@ -8,6 +8,7 @@ import {
 	PermissionFlagsBits,
 	SlashCommandBuilder,
 } from 'discord.js';
+import type { ChatInputCommandInteraction } from 'discord.js';
 import { BOT_VERSION, Colors } from '../config/constants.js';
 import { db } from '../db/index.js';
 import { errorEmbed, successEmbed } from '../utils/embeds.js';
@@ -143,7 +144,7 @@ export const data = new SlashCommandBuilder()
 	.addSubcommand((sub) => sub.setName('reset').setDescription('Reset all settings to defaults'))
 	.setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
 
-export async function execute(interaction) {
+export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
 	const sub = interaction.options.getSubcommand();
 
 	switch (sub) {
@@ -170,7 +171,9 @@ export async function execute(interaction) {
 	}
 }
 
-async function handleView(interaction) {
+async function handleView(interaction: ChatInputCommandInteraction): Promise<void> {
+	if (!interaction.guildId) return;
+
 	const config = await db.getGuildConfig(interaction.guildId);
 
 	const embed = new EmbedBuilder()
@@ -241,10 +244,12 @@ async function handleView(interaction) {
 	await interaction.reply({ embeds: [embed] });
 }
 
-async function handleLogChannel(interaction) {
+async function handleLogChannel(interaction: ChatInputCommandInteraction): Promise<void> {
+	if (!interaction.guildId) return;
+
 	const channel = interaction.options.getChannel('channel');
 
-	const permissions = channel.permissionsFor(interaction.guild.members.me);
+	const permissions = channel.permissionsFor(interaction.guild?.members.me);
 	if (!permissions?.has(['SendMessages', 'EmbedLinks'])) {
 		return interaction.reply({
 			embeds: [
@@ -261,7 +266,9 @@ async function handleLogChannel(interaction) {
 	});
 }
 
-async function handleThresholds(interaction) {
+async function handleThresholds(interaction: ChatInputCommandInteraction): Promise<void> {
+	if (!interaction.guildId) return;
+
 	const mute = interaction.options.getInteger('mute');
 	const kick = interaction.options.getInteger('kick');
 	const ban = interaction.options.getInteger('ban');
@@ -301,7 +308,9 @@ async function handleThresholds(interaction) {
 	});
 }
 
-async function handleMuteDuration(interaction) {
+async function handleMuteDuration(interaction: ChatInputCommandInteraction): Promise<void> {
+	if (!interaction.guildId) return;
+
 	const { parseDuration, formatDuration } = await import('../utils/time.js');
 
 	const input = interaction.options.getString('duration');
@@ -329,7 +338,9 @@ async function handleMuteDuration(interaction) {
 	});
 }
 
-async function handleVerificationEnable(interaction) {
+async function handleVerificationEnable(interaction: ChatInputCommandInteraction): Promise<void> {
+	if (!interaction.guildId) return;
+
 	const enabled = interaction.options.getBoolean('enabled', true);
 
 	await db.upsertGuildConfig(interaction.guildId, { verification_enabled: enabled ? 1 : 0 });
@@ -344,11 +355,13 @@ async function handleVerificationEnable(interaction) {
 	});
 }
 
-async function handleVerificationChannels(interaction) {
+async function handleVerificationChannels(interaction: ChatInputCommandInteraction): Promise<void> {
+	if (!interaction.guildId) return;
+
 	const verifyChannel = interaction.options.getChannel('verify', true);
 	const reviewChannel = interaction.options.getChannel('review', true);
 
-	const verifyPermissions = verifyChannel.permissionsFor(interaction.guild.members.me);
+	const verifyPermissions = verifyChannel.permissionsFor(interaction.guild?.members.me);
 	if (!verifyPermissions?.has(['ViewChannel', 'SendMessages', 'EmbedLinks'])) {
 		return interaction.reply({
 			embeds: [
@@ -360,7 +373,7 @@ async function handleVerificationChannels(interaction) {
 		});
 	}
 
-	const reviewPermissions = reviewChannel.permissionsFor(interaction.guild.members.me);
+	const reviewPermissions = reviewChannel.permissionsFor(interaction.guild?.members.me);
 	if (!reviewPermissions?.has(['ViewChannel', 'SendMessages', 'EmbedLinks'])) {
 		return interaction.reply({
 			embeds: [
@@ -387,7 +400,9 @@ async function handleVerificationChannels(interaction) {
 	});
 }
 
-async function handleVerificationRoles(interaction) {
+async function handleVerificationRoles(interaction: ChatInputCommandInteraction): Promise<void> {
+	if (!interaction.guildId) return;
+
 	const verifiedRole = interaction.options.getRole('verified', true);
 	const unverifiedRole = interaction.options.getRole('unverified', true);
 
@@ -398,7 +413,7 @@ async function handleVerificationRoles(interaction) {
 		});
 	}
 
-	const botMember = interaction.guild.members.me;
+	const botMember = interaction.guild?.members.me;
 	if (!botMember.permissions.has(PermissionFlagsBits.ManageRoles)) {
 		return interaction.reply({
 			embeds: [errorEmbed('I need the **Manage Roles** permission to manage verification roles.')],
@@ -431,7 +446,9 @@ async function handleVerificationRoles(interaction) {
 	});
 }
 
-async function handleVerificationRules(interaction) {
+async function handleVerificationRules(interaction: ChatInputCommandInteraction): Promise<void> {
+	if (!interaction.guildId) return;
+
 	const minAgeRaw = interaction.options.getString('minage');
 	const maxAttempts = interaction.options.getInteger('maxattempts');
 
@@ -482,7 +499,9 @@ async function handleVerificationRules(interaction) {
 	});
 }
 
-async function handleVerificationPanel(interaction) {
+async function handleVerificationPanel(interaction: ChatInputCommandInteraction): Promise<void> {
+	if (!interaction.guildId) return;
+
 	const config = db.getGuildConfig(interaction.guildId);
 
 	if (!config.verification_enabled) {
@@ -509,8 +528,8 @@ async function handleVerificationPanel(interaction) {
 	}
 
 	const verifyChannel =
-		interaction.guild.channels.cache.get(config.verify_channel_id) ||
-		(await interaction.guild.channels.fetch(config.verify_channel_id).catch(() => null));
+		interaction.guild?.channels.cache.get(config.verify_channel_id) ||
+		(await interaction.guild?.channels.fetch(config.verify_channel_id).catch(() => null));
 
 	if (!verifyChannel || verifyChannel.type !== ChannelType.GuildText) {
 		return interaction.reply({
@@ -548,7 +567,9 @@ async function handleVerificationPanel(interaction) {
 	});
 }
 
-async function handleReset(interaction) {
+async function handleReset(interaction: ChatInputCommandInteraction): Promise<void> {
+	if (!interaction.guildId) return;
+
 	await db.deleteGuildConfig(interaction.guildId);
 	await db.upsertGuildConfig(interaction.guildId, {});
 
@@ -557,7 +578,7 @@ async function handleReset(interaction) {
 	});
 }
 
-function formatMs(ms) {
+function formatMs(ms: number): string {
 	const seconds = Math.floor(ms / 1000);
 	if (seconds < 60) return `${seconds}s`;
 	const minutes = Math.floor(seconds / 60);

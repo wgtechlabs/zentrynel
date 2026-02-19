@@ -1,4 +1,5 @@
 import { MessageFlags, PermissionFlagsBits, SlashCommandBuilder } from 'discord.js';
+import type { ChatInputCommandInteraction } from 'discord.js';
 import { ActionTypes } from '../config/constants.js';
 import { db } from '../db/index.js';
 import { send as sendModLog } from '../services/modLog.js';
@@ -20,20 +21,22 @@ export const data = new SlashCommandBuilder()
 	)
 	.setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages);
 
-export async function execute(interaction) {
+export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
+	if (!interaction.guildId || !interaction.guild) return;
+
 	const amount = interaction.options.getInteger('amount');
 	const filterUser = interaction.options.getUser('user');
 
 	await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
 
-	const fetched = await interaction.channel.messages.fetch({ limit: amount });
+	const fetched = await interaction.channel?.messages.fetch({ limit: amount });
 
 	let toDelete = fetched;
 	if (filterUser) {
 		toDelete = fetched.filter((msg) => msg.author.id === filterUser.id);
 	}
 
-	const deleted = await interaction.channel.bulkDelete(toDelete, true);
+	const deleted = await interaction.channel?.bulkDelete(toDelete, true);
 
 	await db.logAction(
 		interaction.guildId,
@@ -42,7 +45,7 @@ export async function execute(interaction) {
 		interaction.user.id,
 		filterUser ? `Purged messages from ${filterUser.tag || filterUser.username}` : 'Bulk purge',
 		null,
-		{ count: deleted.size, channel: interaction.channel.id },
+		{ count: deleted.size, channel: interaction.channel?.id },
 	);
 
 	await sendModLog(interaction.guild, {
@@ -52,7 +55,7 @@ export async function execute(interaction) {
 		reason: filterUser
 			? `Purged ${deleted.size} messages from ${filterUser}`
 			: `Purged ${deleted.size} messages`,
-		extra: `Channel: <#${interaction.channel.id}>`,
+		extra: `Channel: <#${interaction.channel?.id}>`,
 	});
 
 	const embed = successEmbed(

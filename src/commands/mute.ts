@@ -1,4 +1,5 @@
 import { MessageFlags, PermissionFlagsBits, SlashCommandBuilder } from 'discord.js';
+import type { ChatInputCommandInteraction } from 'discord.js';
 import { ActionTypes } from '../config/constants.js';
 import { db } from '../db/index.js';
 import { send as sendModLog } from '../services/modLog.js';
@@ -20,12 +21,14 @@ export const data = new SlashCommandBuilder()
 	.addStringOption((option) => option.setName('reason').setDescription('Reason for the mute'))
 	.setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers);
 
-export async function execute(interaction) {
+export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
+	if (!interaction.guildId || !interaction.guild) return;
+
 	const targetUser = interaction.options.getUser('user');
 	const durationStr = interaction.options.getString('duration');
 	const reason = interaction.options.getString('reason') || 'No reason provided';
 
-	const targetMember = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
+	const targetMember = await interaction.guild?.members.fetch(targetUser.id).catch(() => null);
 	if (!targetMember) {
 		return interaction.reply({
 			embeds: [errorEmbed('User not found in this server.')],
@@ -41,15 +44,16 @@ export async function execute(interaction) {
 		});
 	}
 
-	let durationMs;
+	let durationMs: number;
 	if (durationStr) {
-		durationMs = parseDuration(durationStr);
-		if (!durationMs) {
+		const parsed = parseDuration(durationStr);
+		if (!parsed) {
 			return interaction.reply({
 				embeds: [errorEmbed('Invalid duration format. Use: 10s, 5m, 1h, 2d')],
 				flags: [MessageFlags.Ephemeral],
 			});
 		}
+		durationMs = parsed;
 	} else {
 		const config = await db.getGuildConfig(interaction.guildId);
 		durationMs = config.mute_duration_default;
@@ -84,7 +88,7 @@ export async function execute(interaction) {
 
 	await targetUser
 		.send(
-			`You have been muted in **${interaction.guild.name}** for ${formatDuration(durationMs)}.\n**Reason:** ${reason}`,
+			`You have been muted in **${interaction.guild?.name}** for ${formatDuration(durationMs)}.\n**Reason:** ${reason}`,
 		)
 		.catch(() => {});
 

@@ -1,4 +1,5 @@
 import { MessageFlags, PermissionFlagsBits, SlashCommandBuilder } from 'discord.js';
+import type { ChatInputCommandInteraction } from 'discord.js';
 import { ActionTypes } from '../config/constants.js';
 import { db } from '../db/index.js';
 import { send as sendModLog } from '../services/modLog.js';
@@ -14,11 +15,13 @@ export const data = new SlashCommandBuilder()
 	.addStringOption((option) => option.setName('reason').setDescription('Reason for the kick'))
 	.setDefaultMemberPermissions(PermissionFlagsBits.KickMembers);
 
-export async function execute(interaction) {
+export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
+	if (!interaction.guildId || !interaction.guild) return;
+
 	const targetUser = interaction.options.getUser('user');
 	const reason = interaction.options.getString('reason') || 'No reason provided';
 
-	const targetMember = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
+	const targetMember = await interaction.guild?.members.fetch(targetUser.id).catch(() => null);
 	if (!targetMember) {
 		return interaction.reply({
 			embeds: [errorEmbed('User not found in this server.')],
@@ -42,7 +45,7 @@ export async function execute(interaction) {
 	}
 
 	await targetUser
-		.send(`You have been kicked from **${interaction.guild.name}**.\n**Reason:** ${reason}`)
+		.send(`You have been kicked from **${interaction.guild?.name}**.\n**Reason:** ${reason}`)
 		.catch(() => {});
 
 	await targetMember.kick(reason);

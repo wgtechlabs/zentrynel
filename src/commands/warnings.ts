@@ -1,4 +1,5 @@
 import { MessageFlags, PermissionFlagsBits, SlashCommandBuilder } from 'discord.js';
+import type { ChatInputCommandInteraction } from 'discord.js';
 import { db } from '../db/index.js';
 import { errorEmbed, warningListEmbed } from '../utils/embeds.js';
 
@@ -10,7 +11,9 @@ export const data = new SlashCommandBuilder()
 	)
 	.setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers);
 
-export async function execute(interaction) {
+export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
+	if (!interaction.guildId) return;
+
 	const targetUser = interaction.options.getUser('user');
 
 	const warnings = await db.getWarnings(interaction.guildId, targetUser.id, true);
