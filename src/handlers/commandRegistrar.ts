@@ -36,9 +36,9 @@ export async function registerCommands(): Promise<void> {
 }
 
 // Allow running as standalone script: bun run src/handlers/commandRegistrar.ts
-const isMain =
-	import.meta.url === `file://${process.argv[1]}` ||
-	process.argv[1]?.endsWith('commandRegistrar.ts');
+const normalizedUrl = import.meta.url.replace(/\\/g, '/');
+const normalizedArgv = `file://${process.argv[1]}`.replace(/\\/g, '/');
+const isMain = normalizedUrl === normalizedArgv || process.argv[1]?.endsWith('commandRegistrar.ts');
 
 if (isMain) {
 	registerCommands().catch((err) => {
