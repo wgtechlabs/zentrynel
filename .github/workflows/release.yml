@@ -16,6 +16,6 @@ jobs:
           fetch-depth: 0
 
       - name: Create Release
-        uses: wgtechlabs/release-build-flow-action@49a1eaa19f8bd3990c045b278b0e086c6a11c201 # v1.1.4
+        uses: wgtechlabs/release-build-flow-action@799974c8dec094fbe94a92b2764365d3a8f9ce5f # v1.2.1
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
