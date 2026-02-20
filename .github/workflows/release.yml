@@ -18,4 +18,4 @@ jobs:
       - name: Create Release
         uses: wgtechlabs/release-build-flow-action@799974c8dec094fbe94a92b2764365d3a8f9ce5f # v1.2.1
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.GH_PAT }}
