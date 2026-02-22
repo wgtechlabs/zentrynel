@@ -25,6 +25,7 @@ export interface GuildConfig {
 	review_channel_id: string | null;
 	verified_role_id: string | null;
 	unverified_role_id: string | null;
+	on_join_role_id: string | null;
 	verification_enabled: number;
 	verification_min_account_age_hours: number;
 	verification_max_attempts: number;
