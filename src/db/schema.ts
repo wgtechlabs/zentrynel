@@ -1,6 +1,6 @@
 import type { Database } from 'bun:sqlite';
 
-export const CURRENT_VERSION = 3;
+export const CURRENT_VERSION = 4;
 
 interface TableInfoRow {
 	cid: number;
@@ -40,6 +40,7 @@ export function createTables(database: Database): void {
 			review_channel_id TEXT,
 			verified_role_id TEXT,
 			unverified_role_id TEXT,
+			on_join_role_id TEXT,
 			verification_enabled INTEGER NOT NULL DEFAULT 0,
 			verification_min_account_age_hours INTEGER NOT NULL DEFAULT 24,
 			verification_max_attempts INTEGER NOT NULL DEFAULT 3,
@@ -126,6 +127,7 @@ export function createTables(database: Database): void {
 		'review_channel_id TEXT',
 		'verified_role_id TEXT',
 		'unverified_role_id TEXT',
+		'on_join_role_id TEXT',
 		'verification_enabled INTEGER NOT NULL DEFAULT 0',
 		'verification_min_account_age_hours INTEGER NOT NULL DEFAULT 24',
 		'verification_max_attempts INTEGER NOT NULL DEFAULT 3',
