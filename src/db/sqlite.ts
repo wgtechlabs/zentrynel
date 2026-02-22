@@ -48,6 +48,7 @@ const defaultConfig: Omit<GuildConfig, 'guild_id' | 'created_at' | 'updated_at'>
 	review_channel_id: null,
 	verified_role_id: null,
 	unverified_role_id: null,
+	on_join_role_id: null,
 	verification_enabled: Defaults.VERIFICATION_ENABLED,
 	verification_min_account_age_hours: Defaults.VERIFICATION_MIN_ACCOUNT_AGE_HOURS,
 	verification_max_attempts: Defaults.VERIFICATION_MAX_ATTEMPTS,
@@ -55,6 +56,8 @@ const defaultConfig: Omit<GuildConfig, 'guild_id' | 'created_at' | 'updated_at'>
 	warn_threshold_kick: Defaults.WARN_THRESHOLD_KICK,
 	warn_threshold_ban: Defaults.WARN_THRESHOLD_BAN,
 	mute_duration_default: Defaults.MUTE_DURATION_MS,
+	dm_disabled: Defaults.DM_DISABLED,
+	invites_disabled: Defaults.INVITES_DISABLED,
 };
 
 export function getGuildConfig(guildId: string): GuildConfig {
@@ -78,6 +81,7 @@ export function upsertGuildConfig(guildId: string, config: Partial<GuildConfig>)
 				review_channel_id,
 				verified_role_id,
 				unverified_role_id,
+				on_join_role_id,
 				verification_enabled,
 				verification_min_account_age_hours,
 				verification_max_attempts,
@@ -85,6 +89,8 @@ export function upsertGuildConfig(guildId: string, config: Partial<GuildConfig>)
 				warn_threshold_kick,
 				warn_threshold_ban,
 				mute_duration_default,
+				dm_disabled,
+				invites_disabled,
 				updated_at
 			)
 			VALUES (
@@ -95,6 +101,7 @@ export function upsertGuildConfig(guildId: string, config: Partial<GuildConfig>)
 				$review_channel_id,
 				$verified_role_id,
 				$unverified_role_id,
+				$on_join_role_id,
 				$verification_enabled,
 				$verification_min_account_age_hours,
 				$verification_max_attempts,
@@ -102,6 +109,8 @@ export function upsertGuildConfig(guildId: string, config: Partial<GuildConfig>)
 				$warn_threshold_kick,
 				$warn_threshold_ban,
 				$mute_duration_default,
+				$dm_disabled,
+				$invites_disabled,
 				datetime('now')
 			)
 			ON CONFLICT(guild_id) DO UPDATE SET
@@ -111,6 +120,7 @@ export function upsertGuildConfig(guildId: string, config: Partial<GuildConfig>)
 				review_channel_id = $review_channel_id,
 				verified_role_id = $verified_role_id,
 				unverified_role_id = $unverified_role_id,
+				on_join_role_id = $on_join_role_id,
 				verification_enabled = $verification_enabled,
 				verification_min_account_age_hours = $verification_min_account_age_hours,
 				verification_max_attempts = $verification_max_attempts,
@@ -118,6 +128,8 @@ export function upsertGuildConfig(guildId: string, config: Partial<GuildConfig>)
 				warn_threshold_kick = $warn_threshold_kick,
 				warn_threshold_ban = $warn_threshold_ban,
 				mute_duration_default = $mute_duration_default,
+				dm_disabled = $dm_disabled,
+				invites_disabled = $invites_disabled,
 				updated_at = datetime('now')
 		`)
 		.run({
@@ -128,6 +140,7 @@ export function upsertGuildConfig(guildId: string, config: Partial<GuildConfig>)
 			$review_channel_id: merged.review_channel_id,
 			$verified_role_id: merged.verified_role_id,
 			$unverified_role_id: merged.unverified_role_id,
+			$on_join_role_id: merged.on_join_role_id,
 			$verification_enabled: merged.verification_enabled,
 			$verification_min_account_age_hours: merged.verification_min_account_age_hours,
 			$verification_max_attempts: merged.verification_max_attempts,
@@ -135,11 +148,21 @@ export function upsertGuildConfig(guildId: string, config: Partial<GuildConfig>)
 			$warn_threshold_kick: merged.warn_threshold_kick,
 			$warn_threshold_ban: merged.warn_threshold_ban,
 			$mute_duration_default: merged.mute_duration_default,
+			$dm_disabled: merged.dm_disabled,
+			$invites_disabled: merged.invites_disabled,
 		});
 }
 
 export function deleteGuildConfig(guildId: string): void {
 	getDatabase().query('DELETE FROM guild_config WHERE guild_id = ?').run(guildId);
+}
+
+export function getGuildsWithIncidentActions(): GuildConfig[] {
+	return (
+		(getDatabase()
+			.query('SELECT * FROM guild_config WHERE dm_disabled = 1 OR invites_disabled = 1')
+			.all() as GuildConfig[]) ?? []
+	);
 }
 
 // --- Verification ---

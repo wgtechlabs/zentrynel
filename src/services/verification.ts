@@ -1266,7 +1266,7 @@ async function queueManualReview(
 	return { queued: true, existing: false };
 }
 
-async function applyVerifiedRoles(
+export async function applyVerifiedRoles(
 	member: GuildMember,
 	config: GuildConfig,
 	reason: string,
@@ -1318,6 +1318,15 @@ async function applyVerifiedRoles(
 	await member.roles.add(verifiedRole, reason);
 	if (member.roles.cache.has(unverifiedRole.id)) {
 		await member.roles.remove(unverifiedRole, reason);
+	}
+
+	if (config.on_join_role_id) {
+		const onJoinRole = await member.guild.roles.fetch(config.on_join_role_id).catch(() => null);
+		if (onJoinRole && member.roles.cache.has(onJoinRole.id)) {
+			if (onJoinRole.position < botMember.roles.highest.position) {
+				await member.roles.remove(onJoinRole, reason);
+			}
+		}
 	}
 
 	return { ok: true };
@@ -1376,6 +1385,15 @@ async function applyUnverifiedRoles(
 	}
 	if (!member.roles.cache.has(unverifiedRole.id)) {
 		await member.roles.add(unverifiedRole, reason);
+	}
+
+	if (config.on_join_role_id) {
+		const onJoinRole = await member.guild.roles.fetch(config.on_join_role_id).catch(() => null);
+		if (onJoinRole && member.roles.cache.has(onJoinRole.id)) {
+			if (onJoinRole.position < botMember.roles.highest.position) {
+				await member.roles.remove(onJoinRole, reason);
+			}
+		}
 	}
 
 	return { ok: true };

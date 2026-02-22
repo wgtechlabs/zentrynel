@@ -25,6 +25,7 @@ export interface GuildConfig {
 	review_channel_id: string | null;
 	verified_role_id: string | null;
 	unverified_role_id: string | null;
+	on_join_role_id: string | null;
 	verification_enabled: number;
 	verification_min_account_age_hours: number;
 	verification_max_attempts: number;
@@ -32,6 +33,8 @@ export interface GuildConfig {
 	warn_threshold_kick: number;
 	warn_threshold_ban: number;
 	mute_duration_default: number;
+	dm_disabled: number;
+	invites_disabled: number;
 	created_at?: string;
 	updated_at?: string;
 }

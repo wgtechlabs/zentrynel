@@ -22,6 +22,17 @@ export async function registerCommands(): Promise<void> {
 
 	const rest = new REST().setToken(env.DISCORD_TOKEN);
 
+	logger.info(`Built ${commands.length} commands:`);
+	for (const cmd of commands) {
+		const c = cmd as { name: string; options?: Array<{ type: number; name: string }> };
+		const subs = (c.options ?? []).filter((o) => o.type === 1);
+		const subInfo =
+			subs.length > 0
+				? ` (${subs.length} subcommands: ${subs.map((s) => s.name).join(', ')})`
+				: '';
+		logger.info(`  /${c.name}${subInfo}`);
+	}
+
 	if (env.DEV_GUILD_ID) {
 		logger.info(`Registering ${commands.length} commands to guild ${env.DEV_GUILD_ID}...`);
 		await rest.put(Routes.applicationGuildCommands(env.CLIENT_ID, env.DEV_GUILD_ID), {

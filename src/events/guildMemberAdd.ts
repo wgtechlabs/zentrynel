@@ -55,6 +55,35 @@ export async function execute(member: GuildMember): Promise<void> {
 		}
 	}
 
+	if (config.on_join_role_id) {
+		const onJoinRole = await member.guild.roles
+			.fetch(config.on_join_role_id)
+			.catch(() => null);
+
+		if (onJoinRole) {
+			if (onJoinRole.position < botMember.roles.highest.position) {
+				if (!member.roles.cache.has(onJoinRole.id)) {
+					try {
+						await member.roles.add(onJoinRole, 'Auto-assign on-join role');
+					} catch (err) {
+						logger.error(
+							`Failed to auto-assign on-join role to ${member.id} in guild ${member.guild.id}:`,
+							(err as Error).message,
+						);
+					}
+				}
+			} else {
+				logger.warn(
+					`Cannot assign on-join role in guild ${member.guild.id}: role hierarchy is too high`,
+				);
+			}
+		} else {
+			logger.warn(
+				`On-join role ${config.on_join_role_id} not found in guild ${member.guild.id}`,
+			);
+		}
+	}
+
 	let inviteCode: string | null = null;
 	try {
 		inviteCode = await resolveUsedInvite(member.guild);
