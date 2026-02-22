@@ -34,6 +34,17 @@ export async function registerCommands(): Promise<void> {
 	}
 
 	if (env.DEV_GUILD_ID) {
+		// Clear stale global commands so they don't shadow guild-scoped ones
+		const globalCommands = (await rest.get(Routes.applicationCommands(env.CLIENT_ID))) as
+			unknown[];
+		if (globalCommands.length > 0) {
+			logger.info(
+				`Clearing ${globalCommands.length} stale global commands to avoid shadowing...`,
+			);
+			await rest.put(Routes.applicationCommands(env.CLIENT_ID), { body: [] });
+			logger.info('Global commands cleared.');
+		}
+
 		logger.info(`Registering ${commands.length} commands to guild ${env.DEV_GUILD_ID}...`);
 		await rest.put(Routes.applicationGuildCommands(env.CLIENT_ID, env.DEV_GUILD_ID), {
 			body: commands,
