@@ -14,6 +14,84 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+
+## [0.7.0] - 2026-02-22
+
+### Added
+
+- add messageCreate event handler for direct message responses
+- add @wgtechlabs/log-engine dependency
+- add @wgtechlabs/log-engine dependency
+- add new challenge button to captcha prompt
+- conditionally register commands via REGISTER_COMMANDS env var
+- add CAPTCHA preview script for generating images
+- add preview captcha script to package.json
+- add graceful shutdown on SIGTERM and SIGINT
+- add shared typescript interfaces
+- add TypeScript types to verification service
+- export BOT_VERSION from package.json
+- add image captcha and two-phase identity check
+- add GitHub Actions workflow for container build
+
+### Changed
+
+- clear stale global commands to avoid shadowing guild commands
+- add fontconfig and ttf-dejavu to release stage
+- bump release-build-flow-action to v1.1.4
+- replace console logging with LogEngine methods
+- enhance captcha rendering and response handling
+- enhance rendering styles for better readability
+- fix randomInt off-by-one in captcha generation
+- improve null safety and return errors on escalation
+- reply with error when used outside a guild
+- add error handling and handle unrecognized interactions
+- use pathToFileURL and add error handling in loaders
+- handle null targetUser and zero-ms duration edge case
+- make canModerate async to safely resolve GuildMember
+- use || operator for env var fallbacks
+- consolidate column-check logic and add getDatabase helper
+- enhance CAPTCHA generation and validation logic
+- add scripts/captcha-preview to ignore list
+- fix null checks, sync db calls, and remove local formatMs
+- add channel type guard and null safety
+- use required options and truncate reason string
+- remove await from synchronous db calls
+- normalize file paths for Windows compatibility
+- sync db calls and clean up config on guild leave
+- add null safety to sqlite query results
+- add insert statement for guild configuration
+- harden BOT_VERSION and fix interactionCreate early return
+- deduplicate FOOTER and extract paintCanvasNoise helper
+- serialize resolution and detect one-time invites
+- update dockerfile to use typescript entry point
+- migrate entry points to typescript
+- migrate commands to typescript
+- migrate services to typescript
+- migrate handlers and events to typescript
+- migrate config, utils, and db layers to typescript
+- add typescript config and update tooling
+- add bun test script
+- refine minimum account age description and validation
+- add version footer to verification embeds
+- add version footer to config command embeds
+- add version footer to shared embed helpers
+- change minage option to string format for duration input
+- specify exact versions for checkout and release action
+- specify exact version for release build action
+
+### Removed
+
+- eliminate user notification on kick command
+- eliminate user notification on ban command
+
+### Fixed
+
+- improve readability after Discord image compression
+
+### Security
+
+- add rate limit between verification attempts
+
 ## [0.6.0] - 2026-02-22
 
 ### Added
