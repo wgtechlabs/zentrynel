@@ -10,6 +10,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+
+## [0.4.0] - 2026-02-22
+
+### Added
+
+- add disabledms and disableinvites config subcommands
+- add incident actions service for DM and invite control
+- add dm_disabled and invites_disabled fields to guild config
+
+### Changed
+
+- silently ignore DMs instead of replying
+- wire incident actions refresh on startup and shutdown
+
 ## [0.3.2] - 2026-02-20
 
 ### Changed
