@@ -13,6 +13,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+
+## [0.6.0] - 2026-02-22
+
+### Added
+
+- remove on-join role on verify and reject
+- auto-assign on-join role when member joins
+- add optional on-join role to verification config
+- add on_join_role_id to guild config persistence layer
+- add on_join_role_id column and bump schema to v4
+- add on_join_role_id field to GuildConfig interface
+
+### Changed
+
+- add .claude/ to .gitignore
+
 ## [0.5.0] - 2026-02-22
 
 ### Added
