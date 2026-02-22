@@ -14,6 +14,7 @@ A sharding-ready Discord moderation bot with an escalating strike system, built 
 - **Two-layer member verification** — In-server button + challenge flow with manual moderator fallback queue.
 - **Sharding-ready** — Separate shard manager and client entry points, scales to thousands of servers.
 - **Swappable database** — Abstracted DB layer on `bun:sqlite`, swap to PostgreSQL with one import change.
+- **DM & invite disabler** — Disable member-to-member DMs and/or invite creation server-wide, automatically maintained.
 - **Per-server config** — Each server gets independent settings, log channels, and strike history.
 
 ## Setup
@@ -69,6 +70,8 @@ bun run dev
 | `/config verificationroles <verified> <unverified>` | Administrator | Set verified/unverified roles |
 | `/config verificationrules [minage] [maxattempts]` | Administrator | Set account-age (e.g. 24h, 2d) and retry rules |
 | `/config verificationpanel` | Administrator | Post verification button panel |
+| `/config disabledms <disable>` | Administrator | Disable or re-enable DMs server-wide |
+| `/config disableinvites <disable>` | Administrator | Disable or re-enable server invites |
 | `/config reset` | Administrator | Reset to defaults |
 
 ## Escalation
@@ -96,6 +99,18 @@ Verification is fully in-server (no DMs):
 4. Members click **Start Verification** in the verify channel:
    - If automated checks + challenge pass, bot grants verified role.
    - If risk/failure is detected, bot queues member in review channel for moderator action.
+
+## DM & Invite Disabler
+
+Disable member-to-member DMs and/or server invites using Discord's Incident Actions API:
+
+- `/config disabledms disable:true` — Disables DMs server-wide.
+- `/config disableinvites disable:true` — Disables invite creation server-wide.
+- Pass `disable:false` to re-enable either setting.
+
+Discord limits the disable window to 24 hours. The bot automatically re-extends the restriction every 12 hours so it stays permanent until you turn it off.
+
+> **Note:** Friends can still message each other, moderators can still message members, and bots/apps are unaffected. This only restricts regular member-to-member DMs within the server context.
 
 ## Architecture
 
