@@ -11,6 +11,7 @@ import {
 import type { ChatInputCommandInteraction } from 'discord.js';
 import { Colors } from '../config/constants.js';
 import { db } from '../db/index.js';
+import { applyIncidentActions } from '../services/incidentActions.js';
 import { FOOTER, errorEmbed, successEmbed } from '../utils/embeds.js';
 import { formatDuration, parseDuration } from '../utils/time.js';
 
@@ -139,6 +140,28 @@ export const data = new SlashCommandBuilder()
 			.setName('verificationpanel')
 			.setDescription('Post the verification panel in the configured verify channel'),
 	)
+	.addSubcommand((sub) =>
+		sub
+			.setName('disabledms')
+			.setDescription('Permanently disable or re-enable DMs server-wide')
+			.addBooleanOption((option) =>
+				option
+					.setName('disable')
+					.setDescription('True to disable DMs, false to re-enable them')
+					.setRequired(true),
+			),
+	)
+	.addSubcommand((sub) =>
+		sub
+			.setName('disableinvites')
+			.setDescription('Permanently disable or re-enable server invites')
+			.addBooleanOption((option) =>
+				option
+					.setName('disable')
+					.setDescription('True to disable invites, false to re-enable them')
+					.setRequired(true),
+			),
+	)
 	.addSubcommand((sub) => sub.setName('reset').setDescription('Reset all settings to defaults'))
 	.setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
 
@@ -164,6 +187,10 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 			return handleVerificationRules(interaction);
 		case 'verificationpanel':
 			return handleVerificationPanel(interaction);
+		case 'disabledms':
+			return handleDisableDms(interaction);
+		case 'disableinvites':
+			return handleDisableInvites(interaction);
 		case 'reset':
 			return handleReset(interaction);
 	}
@@ -233,6 +260,17 @@ async function handleView(interaction: ChatInputCommandInteraction): Promise<voi
 			{
 				name: 'Auto-Ban Threshold',
 				value: `${config.warn_threshold_ban} warnings`,
+				inline: true,
+			},
+			{ name: '\u200b', value: '\u200b', inline: true },
+			{
+				name: 'DMs Disabled',
+				value: config.dm_disabled ? 'Yes' : 'No',
+				inline: true,
+			},
+			{
+				name: 'Invites Disabled',
+				value: config.invites_disabled ? 'Yes' : 'No',
 				inline: true,
 			},
 		)
@@ -578,8 +616,75 @@ async function handleVerificationPanel(interaction: ChatInputCommandInteraction)
 	});
 }
 
+async function handleIncidentAction(
+	interaction: ChatInputCommandInteraction,
+	field: 'dm_disabled' | 'invites_disabled',
+	label: string,
+): Promise<void> {
+	if (!interaction.guildId) return;
+
+	const disable = interaction.options.getBoolean('disable', true);
+
+	const botMember = interaction.guild?.members.me;
+	if (!botMember?.permissions.has(PermissionFlagsBits.ManageGuild)) {
+		return interaction.reply({
+			embeds: [errorEmbed('I need the **Manage Server** permission to manage incident actions.')],
+			flags: [MessageFlags.Ephemeral],
+		});
+	}
+
+	const config = db.getGuildConfig(interaction.guildId);
+	const dmDisabled = field === 'dm_disabled' ? disable : config.dm_disabled === 1;
+	const invitesDisabled = field === 'invites_disabled' ? disable : config.invites_disabled === 1;
+
+	try {
+		await applyIncidentActions(interaction.client, interaction.guildId, dmDisabled, invitesDisabled);
+	} catch {
+		return interaction.reply({
+			embeds: [
+				errorEmbed(
+					`Failed to update ${label} settings via Discord. Make sure I have the **Manage Server** permission and try again.`,
+				),
+			],
+			flags: [MessageFlags.Ephemeral],
+		});
+	}
+
+	db.upsertGuildConfig(interaction.guildId, { [field]: disable ? 1 : 0 });
+
+	await interaction.reply({
+		embeds: [
+			successEmbed(
+				`${label} Settings Updated`,
+				disable
+					? `${label} are now **disabled** server-wide. The restriction is automatically maintained.`
+					: `${label} have been **re-enabled** server-wide.`,
+			),
+		],
+	});
+}
+
+async function handleDisableDms(interaction: ChatInputCommandInteraction): Promise<void> {
+	return handleIncidentAction(interaction, 'dm_disabled', 'DM');
+}
+
+async function handleDisableInvites(interaction: ChatInputCommandInteraction): Promise<void> {
+	return handleIncidentAction(interaction, 'invites_disabled', 'Invite');
+}
+
 async function handleReset(interaction: ChatInputCommandInteraction): Promise<void> {
 	if (!interaction.guildId) return;
+
+	const config = db.getGuildConfig(interaction.guildId);
+
+	// Re-enable DMs and invites via Discord API if they were disabled
+	if (config.dm_disabled || config.invites_disabled) {
+		try {
+			await applyIncidentActions(interaction.client, interaction.guildId, false, false);
+		} catch {
+			// Best-effort — continue with the config reset
+		}
+	}
 
 	db.deleteGuildConfig(interaction.guildId);
 	db.upsertGuildConfig(interaction.guildId, {});
