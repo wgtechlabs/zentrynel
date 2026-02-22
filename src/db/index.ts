@@ -9,6 +9,7 @@ export const db = {
 	upsertGuildConfig: (guildId: string, config: Partial<GuildConfig>): void =>
 		driver.upsertGuildConfig(guildId, config),
 	deleteGuildConfig: (guildId: string): void => driver.deleteGuildConfig(guildId),
+	getGuildsWithIncidentActions: (): GuildConfig[] => driver.getGuildsWithIncidentActions(),
 
 	getVerificationState: (guildId: string, userId: string): VerificationState | null =>
 		driver.getVerificationState(guildId, userId),
