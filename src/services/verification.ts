@@ -1266,7 +1266,7 @@ async function queueManualReview(
 	return { queued: true, existing: false };
 }
 
-async function applyVerifiedRoles(
+export async function applyVerifiedRoles(
 	member: GuildMember,
 	config: GuildConfig,
 	reason: string,
