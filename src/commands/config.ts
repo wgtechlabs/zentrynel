@@ -72,6 +72,16 @@ export const data = new SlashCommandBuilder()
 	)
 	.addSubcommand((sub) =>
 		sub
+			.setName('onjoinrole')
+			.setDescription('Set or clear the auto-assigned on-join role')
+			.addRoleOption((option) =>
+				option
+					.setName('role')
+					.setDescription('Role auto-assigned when a member joins (omit to clear)'),
+			),
+	)
+	.addSubcommand((sub) =>
+		sub
 			.setName('verificationenable')
 			.setDescription('Enable or disable member verification')
 			.addBooleanOption((option) =>
@@ -139,16 +149,6 @@ export const data = new SlashCommandBuilder()
 		sub
 			.setName('verificationpanel')
 			.setDescription('Post the verification panel in the configured verify channel'),
-	)
-	.addSubcommand((sub) =>
-		sub
-			.setName('onjoinrole')
-			.setDescription('Set or clear the auto-assigned on-join role')
-			.addRoleOption((option) =>
-				option
-					.setName('role')
-					.setDescription('Role auto-assigned when a member joins (omit to clear)'),
-			),
 	)
 	.addSubcommand((sub) =>
 		sub
@@ -290,6 +290,7 @@ async function handleView(interaction: ChatInputCommandInteraction): Promise<voi
 				value: config.invites_disabled ? 'Yes' : 'No',
 				inline: true,
 			},
+			{ name: '\u200b', value: '\u200b', inline: true },
 		)
 		.setFooter(FOOTER)
 		.setTimestamp();
@@ -497,6 +498,22 @@ async function handleVerificationRoles(interaction: ChatInputCommandInteraction)
 		});
 	}
 
+	const config = db.getGuildConfig(interaction.guildId);
+
+	if (
+		config.on_join_role_id &&
+		(verifiedRole.id === config.on_join_role_id || unverifiedRole.id === config.on_join_role_id)
+	) {
+		return interaction.reply({
+			embeds: [
+				errorEmbed(
+					'Verified and unverified roles must be different from the configured on-join role.',
+				),
+			],
+			flags: [MessageFlags.Ephemeral],
+		});
+	}
+
 	db.upsertGuildConfig(interaction.guildId, {
 		verified_role_id: verifiedRole.id,
 		unverified_role_id: unverifiedRole.id,
@@ -534,9 +551,16 @@ async function handleOnJoinRole(interaction: ChatInputCommandInteraction): Promi
 
 	// Clear the on-join role if no role is provided
 	if (!role) {
+		const config = db.getGuildConfig(interaction.guildId);
+		const previousRole = config.on_join_role_id;
 		db.upsertGuildConfig(interaction.guildId, { on_join_role_id: null });
+
+		const description = previousRole
+			? `<@&${previousRole}> will no longer be auto-assigned on join.`
+			: 'No on-join role was configured.';
+
 		return interaction.reply({
-			embeds: [successEmbed('On-Join Role Cleared', 'The on-join role has been removed.')],
+			embeds: [successEmbed('On-Join Role Cleared', description)],
 		});
 	}
 
@@ -552,6 +576,17 @@ async function handleOnJoinRole(interaction: ChatInputCommandInteraction): Promi
 	if (role.id === config.verified_role_id || role.id === config.unverified_role_id) {
 		return interaction.reply({
 			embeds: [errorEmbed('On-join role must be different from verification roles.')],
+			flags: [MessageFlags.Ephemeral],
+		});
+	}
+
+	if (config.mute_role_id && role.id === config.mute_role_id) {
+		return interaction.reply({
+			embeds: [
+				errorEmbed(
+					'On-join role cannot be the same as the mute role — every new member would appear muted.',
+				),
+			],
 			flags: [MessageFlags.Ephemeral],
 		});
 	}
