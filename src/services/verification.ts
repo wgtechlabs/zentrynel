@@ -16,6 +16,7 @@ import type {
 	ActionRow,
 	ButtonComponent,
 	ButtonInteraction,
+	Embed,
 	Guild,
 	GuildMember,
 	Interaction,
@@ -244,6 +245,10 @@ export async function handleVerificationInteraction(interaction: Interaction): P
 		if (parts[0] === 'verify' && parts[1] === 'ctxmodal') {
 			pruneChallengeSessions();
 			await handleContextAnswer(interaction, parts[2]);
+			return true;
+		}
+		if (parts[0] === 'verify' && parts[1] === 'banconfirm') {
+			await handleBanConfirmation(interaction, parts[2]);
 			return true;
 		}
 		return false;
@@ -1022,6 +1027,89 @@ async function handleManualReviewAction(
 				reason: 'Manual verification rejected',
 			});
 		}
+	} else if (decision === 'kick') {
+		const reason = 'Failed to pass manual review process';
+
+		if (targetMember) {
+			if (!targetMember.kickable) {
+				await interaction.reply({
+					content: 'Cannot kick this member — they may have a higher role than me.',
+					flags: [MessageFlags.Ephemeral],
+				});
+				return;
+			}
+
+			await targetMember.kick(reason);
+		}
+
+		db.upsertVerificationState(interaction.guildId, userId, {
+			status: 'REJECTED',
+			manual_required: 1,
+			review_message_id: null,
+			manual_reason: `Kicked by ${interaction.user.tag}`,
+			last_challenge_at: null,
+		});
+
+		actionType = ActionTypes.VERIFY_KICK;
+		message = targetMember
+			? `Kicked by ${interaction.user}`
+			: `Member already left — marked as kicked by ${interaction.user}`;
+
+		db.logAction(
+			interaction.guildId,
+			actionType,
+			userId,
+			interaction.user.id,
+			reason,
+			null,
+			{ mode: 'manual', action: 'kick' },
+		);
+
+		const kickTargetUser = targetMember?.user
+			?? await interaction.client.users.fetch(userId).catch(() => null);
+
+		if (kickTargetUser) {
+			await sendModLog(interaction.guild, {
+				actionType,
+				targetUser: kickTargetUser,
+				moderator: interaction.user,
+				reason,
+			});
+		}
+	} else if (decision === 'ban') {
+		if (!interaction.guild.members.me?.permissions.has(PermissionFlagsBits.BanMembers)) {
+			await interaction.reply({
+				content: 'I need the **Ban Members** permission to ban this member.',
+				flags: [MessageFlags.Ephemeral],
+			});
+			return;
+		}
+
+		if (targetMember && !targetMember.bannable) {
+			await interaction.reply({
+				content: 'Cannot ban this member — they may have a higher role than me.',
+				flags: [MessageFlags.Ephemeral],
+			});
+			return;
+		}
+
+		const banModal = new ModalBuilder()
+			.setCustomId(`verify:banconfirm:${userId}`)
+			.setTitle('Confirm Ban')
+			.addComponents(
+				new ActionRowBuilder<TextInputBuilder>().addComponents(
+					new TextInputBuilder()
+						.setCustomId('reason')
+						.setLabel('Reason (optional)')
+						.setStyle(TextInputStyle.Short)
+						.setPlaceholder('Failed to pass manual review process')
+						.setRequired(false)
+						.setMaxLength(512),
+				),
+			);
+
+		await interaction.showModal(banModal);
+		return;
 	} else {
 		db.upsertVerificationState(interaction.guildId, userId, {
 			status: 'PENDING',
@@ -1055,13 +1143,106 @@ async function handleManualReviewAction(
 		}
 	}
 
-	const updatedEmbed = buildManualReviewResultEmbed(interaction, actionType, message);
+	const updatedEmbed = buildManualReviewResultEmbed(interaction.message.embeds[0], actionType, message);
 	const disabledComponents = disableButtonRows(interaction.message.components);
 	await interaction.update({ embeds: [updatedEmbed], components: disabledComponents });
 	await interaction.followUp({
 		content: `Manual verification updated for <@${userId}>.`,
 		flags: [MessageFlags.Ephemeral],
 	});
+}
+
+/**
+ * Handle the ban confirmation modal submit — executes the actual ban after
+ * the moderator confirms via the modal shown by the Ban button.
+ */
+async function handleBanConfirmation(
+	interaction: ModalSubmitInteraction,
+	userId: string,
+): Promise<void> {
+	if (!interaction.inGuild() || !interaction.guild) {
+		await interaction.reply({
+			content: 'Ban actions can only be used in server channels.',
+			flags: [MessageFlags.Ephemeral],
+		});
+		return;
+	}
+
+	if (!interaction.guild.members.me?.permissions.has(PermissionFlagsBits.BanMembers)) {
+		await interaction.reply({
+			content: 'I need the **Ban Members** permission to ban this member.',
+			flags: [MessageFlags.Ephemeral],
+		});
+		return;
+	}
+
+	const targetMember = await interaction.guild.members.fetch(userId).catch(() => null);
+
+	if (targetMember && !targetMember.bannable) {
+		await interaction.reply({
+			content: 'Cannot ban this member — they may have a higher role than me.',
+			flags: [MessageFlags.Ephemeral],
+		});
+		return;
+	}
+
+	const customReason = interaction.fields.getTextInputValue('reason')?.trim();
+	const reason = customReason || 'Failed to pass manual review process';
+
+	await interaction.guild.members.ban(userId, { reason });
+
+	db.upsertVerificationState(interaction.guildId, userId, {
+		status: 'BANNED',
+		manual_required: 1,
+		review_message_id: null,
+		manual_reason: `Banned by ${interaction.user.tag}`,
+		last_challenge_at: null,
+	});
+
+	const actionType = ActionTypes.BAN;
+	const message = `Banned by ${interaction.user}`;
+
+	db.logAction(
+		interaction.guildId,
+		actionType,
+		userId,
+		interaction.user.id,
+		reason,
+		null,
+		{ mode: 'manual', action: 'ban' },
+	);
+
+	const targetUser =
+		targetMember?.user ?? (await interaction.client.users.fetch(userId).catch(() => null));
+
+	if (targetUser) {
+		await sendModLog(interaction.guild, {
+			actionType,
+			targetUser,
+			moderator: interaction.user,
+			reason,
+		});
+	}
+
+	// Update the review embed and disable buttons
+	if (interaction.isFromMessage()) {
+		const updatedEmbed = buildManualReviewResultEmbed(
+			interaction.message.embeds[0],
+			actionType,
+			message,
+		);
+		const disabledComponents = disableButtonRows(interaction.message.components);
+		await interaction.update({ embeds: [updatedEmbed], components: disabledComponents });
+		await interaction.followUp({
+			content: `Manual verification updated for <@${userId}>.`,
+			flags: [MessageFlags.Ephemeral],
+		});
+	} else {
+		await interaction.reply({
+			content: `<@${userId}> has been banned.`,
+			flags: [MessageFlags.Ephemeral],
+		});
+	}
 }
 
 function createChallenge(
@@ -1226,10 +1407,18 @@ async function queueManualReview(
 		new ButtonBuilder()
 			.setCustomId(`verify:review:reject:${member.id}`)
 			.setLabel('Reject')
+			.setStyle(ButtonStyle.Secondary),
+		new ButtonBuilder()
+			.setCustomId(`verify:review:kick:${member.id}`)
+			.setLabel('Kick')
+			.setStyle(ButtonStyle.Danger),
+		new ButtonBuilder()
+			.setCustomId(`verify:review:ban:${member.id}`)
+			.setLabel('Ban')
 			.setStyle(ButtonStyle.Danger),
 		new ButtonBuilder()
 			.setCustomId(`verify:review:recheck:${member.id}`)
-			.setLabel('Request Recheck')
+			.setLabel('Recheck')
 			.setStyle(ButtonStyle.Secondary),
 	);
 
@@ -1414,12 +1603,12 @@ function getAccountAgeHours(createdTimestamp: number): number {
 }
 
 function buildManualReviewResultEmbed(
-	interaction: ButtonInteraction,
+	existingEmbed: Embed | undefined,
 	actionType: string,
 	message: string,
 ): EmbedBuilder {
-	const baseEmbed = interaction.message.embeds[0]
-		? EmbedBuilder.from(interaction.message.embeds[0])
+	const baseEmbed = existingEmbed
+		? EmbedBuilder.from(existingEmbed)
 		: new EmbedBuilder().setTitle('Manual Verification');
 
 	return baseEmbed
@@ -1429,7 +1618,7 @@ function buildManualReviewResultEmbed(
 		.setTimestamp();
 }
 
-function disableButtonRows(rows: ActionRow<ButtonComponent>[]): ActionRowBuilder<ButtonBuilder>[] {
+export function disableButtonRows(rows: ActionRow<ButtonComponent>[]): ActionRowBuilder<ButtonBuilder>[] {
 	return rows.map((row) =>
 		new ActionRowBuilder().addComponents(
 			row.components.map((component) => ButtonBuilder.from(component).setDisabled(true)),
