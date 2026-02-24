@@ -15,6 +15,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+
+## [0.8.0] - 2026-02-24
+
+### Added
+
+- add manualreviewtimeout subcommand
+- add manual review reminder and expiry sweep phases
+- add kick and ban actions to manual review
+- add manual_review_timeout and review_reminded fields
+- add verificationkick subcommand to config
+- add verification sweep service for auto-kick
+- add verification_kick_timeout column and stale verification query
+- add VERIFY_KICK color, action type, and default timeout
+- add verification_kick_timeout to GuildConfig
+- add on-join role management functionality
+- add on-join role management functionality
+
+### Changed
+
+- wire up verification sweep on ready and shutdown
+- enhance role assignment logic on member join
+
 ## [0.7.0] - 2026-02-22
 
 ### Added
