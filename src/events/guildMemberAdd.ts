@@ -9,15 +9,49 @@ export const once = false;
 
 export async function execute(member: GuildMember): Promise<void> {
 	const config = db.getGuildConfig(member.guild.id);
-	if (!config.verification_enabled || !config.unverified_role_id) return;
 
 	const botMember = member.guild.members.me;
 	if (!botMember?.permissions.has(PermissionFlagsBits.ManageRoles)) {
-		logger.warn(
-			`Missing Manage Roles permission in guild ${member.guild.id} for verification role setup`,
-		);
+		if (config.on_join_role_id || (config.verification_enabled && config.unverified_role_id)) {
+			logger.warn(
+				`Missing Manage Roles permission in guild ${member.guild.id} for role assignment on join`,
+			);
+		}
 		return;
 	}
+
+	// On-join role: always assigned independently of verification
+	if (config.on_join_role_id) {
+		const onJoinRole = await member.guild.roles
+			.fetch(config.on_join_role_id)
+			.catch(() => null);
+
+		if (onJoinRole) {
+			if (onJoinRole.position < botMember.roles.highest.position) {
+				if (!member.roles.cache.has(onJoinRole.id)) {
+					try {
+						await member.roles.add(onJoinRole, 'Auto-assign on-join role');
+					} catch (err) {
+						logger.error(
+							`Failed to auto-assign on-join role to ${member.id} in guild ${member.guild.id}:`,
+							(err as Error).message,
+						);
+					}
+				}
+			} else {
+				logger.warn(
+					`Cannot assign on-join role in guild ${member.guild.id}: role hierarchy is too high`,
+				);
+			}
+		} else {
+			logger.warn(
+				`On-join role ${config.on_join_role_id} not found in guild ${member.guild.id}`,
+			);
+		}
+	}
+
+	// Verification: only runs when enabled
+	if (!config.verification_enabled || !config.unverified_role_id) return;
 
 	const unverifiedRole = await member.guild.roles
 		.fetch(config.unverified_role_id)
@@ -52,35 +86,6 @@ export async function execute(member: GuildMember): Promise<void> {
 				(err as Error).message,
 			);
 			return;
-		}
-	}
-
-	if (config.on_join_role_id) {
-		const onJoinRole = await member.guild.roles
-			.fetch(config.on_join_role_id)
-			.catch(() => null);
-
-		if (onJoinRole) {
-			if (onJoinRole.position < botMember.roles.highest.position) {
-				if (!member.roles.cache.has(onJoinRole.id)) {
-					try {
-						await member.roles.add(onJoinRole, 'Auto-assign on-join role');
-					} catch (err) {
-						logger.error(
-							`Failed to auto-assign on-join role to ${member.id} in guild ${member.guild.id}:`,
-							(err as Error).message,
-						);
-					}
-				}
-			} else {
-				logger.warn(
-					`Cannot assign on-join role in guild ${member.guild.id}: role hierarchy is too high`,
-				);
-			}
-		} else {
-			logger.warn(
-				`On-join role ${config.on_join_role_id} not found in guild ${member.guild.id}`,
-			);
 		}
 	}
 
