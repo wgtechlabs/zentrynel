@@ -115,11 +115,6 @@ export const data = new SlashCommandBuilder()
 					.setName('unverified')
 					.setDescription('Role for members pending verification')
 					.setRequired(true),
-			)
-			.addRoleOption((option) =>
-				option
-					.setName('onjoin')
-					.setDescription('Optional role auto-assigned on join, removed on verify/reject'),
 			),
 	)
 	.addSubcommand((sub) =>
@@ -144,6 +139,16 @@ export const data = new SlashCommandBuilder()
 		sub
 			.setName('verificationpanel')
 			.setDescription('Post the verification panel in the configured verify channel'),
+	)
+	.addSubcommand((sub) =>
+		sub
+			.setName('onjoinrole')
+			.setDescription('Set or clear the auto-assigned on-join role')
+			.addRoleOption((option) =>
+				option
+					.setName('role')
+					.setDescription('Role auto-assigned when a member joins (omit to clear)'),
+			),
 	)
 	.addSubcommand((sub) =>
 		sub
@@ -192,6 +197,8 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 			return handleVerificationRules(interaction);
 		case 'verificationpanel':
 			return handleVerificationPanel(interaction);
+		case 'onjoinrole':
+			return handleOnJoinRole(interaction);
 		case 'disabledms':
 			return handleDisableDms(interaction);
 		case 'disableinvites':
@@ -247,11 +254,6 @@ async function handleView(interaction: ChatInputCommandInteraction): Promise<voi
 				inline: true,
 			},
 			{
-				name: 'On-Join Role',
-				value: config.on_join_role_id ? `<@&${config.on_join_role_id}>` : 'Not set',
-				inline: true,
-			},
-			{
 				name: 'Verification Rules',
 				value: `Min account age: **${formatDuration(config.verification_min_account_age_hours * 3_600_000)}**\nMax attempts: **${config.verification_max_attempts}**`,
 				inline: true,
@@ -273,6 +275,11 @@ async function handleView(interaction: ChatInputCommandInteraction): Promise<voi
 				inline: true,
 			},
 			{ name: '\u200b', value: '\u200b', inline: true },
+			{
+				name: 'On-Join Role',
+				value: config.on_join_role_id ? `<@&${config.on_join_role_id}>` : 'Not set',
+				inline: true,
+			},
 			{
 				name: 'DMs Disabled',
 				value: config.dm_disabled ? 'Yes' : 'No',
@@ -457,18 +464,10 @@ async function handleVerificationRoles(interaction: ChatInputCommandInteraction)
 
 	const verifiedRole = interaction.options.getRole('verified', true);
 	const unverifiedRole = interaction.options.getRole('unverified', true);
-	const onJoinRole = interaction.options.getRole('onjoin');
 
 	if (verifiedRole.id === unverifiedRole.id) {
 		return interaction.reply({
 			embeds: [errorEmbed('Verified and unverified roles must be different roles.')],
-			flags: [MessageFlags.Ephemeral],
-		});
-	}
-
-	if (onJoinRole && (onJoinRole.id === verifiedRole.id || onJoinRole.id === unverifiedRole.id)) {
-		return interaction.reply({
-			embeds: [errorEmbed('On-join role must be different from verified and unverified roles.')],
 			flags: [MessageFlags.Ephemeral],
 		});
 	}
@@ -490,36 +489,81 @@ async function handleVerificationRoles(interaction: ChatInputCommandInteraction)
 
 	if (
 		verifiedRole.position >= botMember.roles.highest.position ||
-		unverifiedRole.position >= botMember.roles.highest.position ||
-		(onJoinRole && onJoinRole.position >= botMember.roles.highest.position)
+		unverifiedRole.position >= botMember.roles.highest.position
 	) {
 		return interaction.reply({
-			embeds: [errorEmbed('My highest role must be above the verified, unverified, and on-join roles.')],
+			embeds: [errorEmbed('My highest role must be above the verified and unverified roles.')],
+			flags: [MessageFlags.Ephemeral],
+		});
+	}
+
+	db.upsertGuildConfig(interaction.guildId, {
+		verified_role_id: verifiedRole.id,
+		unverified_role_id: unverifiedRole.id,
+	});
+
+	await interaction.reply({
+		embeds: [
+			successEmbed(
+				'Verification Roles Updated',
+				`Verified role: ${verifiedRole}\nUnverified role: ${unverifiedRole}`,
+			),
+		],
+	});
+}
+
+async function handleOnJoinRole(interaction: ChatInputCommandInteraction): Promise<void> {
+	if (!interaction.guildId) return;
+
+	const role = interaction.options.getRole('role');
+
+	const botMember = interaction.guild?.members.me;
+	if (!botMember) {
+		return interaction.reply({
+			embeds: [errorEmbed('Unable to resolve my own permissions.')],
+			flags: [MessageFlags.Ephemeral],
+		});
+	}
+
+	if (!botMember.permissions.has(PermissionFlagsBits.ManageRoles)) {
+		return interaction.reply({
+			embeds: [errorEmbed('I need the **Manage Roles** permission to manage roles.')],
+			flags: [MessageFlags.Ephemeral],
+		});
+	}
+
+	// Clear the on-join role if no role is provided
+	if (!role) {
+		db.upsertGuildConfig(interaction.guildId, { on_join_role_id: null });
+		return interaction.reply({
+			embeds: [successEmbed('On-Join Role Cleared', 'The on-join role has been removed.')],
+		});
+	}
+
+	if (role.position >= botMember.roles.highest.position) {
+		return interaction.reply({
+			embeds: [errorEmbed('My highest role must be above the on-join role.')],
 			flags: [MessageFlags.Ephemeral],
 		});
 	}
 
 	const config = db.getGuildConfig(interaction.guildId);
 
-	db.upsertGuildConfig(interaction.guildId, {
-		verified_role_id: verifiedRole.id,
-		unverified_role_id: unverifiedRole.id,
-		on_join_role_id: onJoinRole ? onJoinRole.id : config.on_join_role_id,
-	});
+	if (role.id === config.verified_role_id || role.id === config.unverified_role_id) {
+		return interaction.reply({
+			embeds: [errorEmbed('On-join role must be different from verification roles.')],
+			flags: [MessageFlags.Ephemeral],
+		});
+	}
 
-	const onJoinDisplay = onJoinRole
-		? `\nOn-join role: ${onJoinRole}`
-		: config.on_join_role_id
-			? `\nOn-join role: <@&${config.on_join_role_id}>`
-			: '';
+	db.upsertGuildConfig(interaction.guildId, { on_join_role_id: role.id });
+
+	const description = config.verification_enabled
+		? `On-join role set to ${role}.\nThis role will be removed when a member is verified or rejected.`
+		: `On-join role set to ${role}.`;
 
 	await interaction.reply({
-		embeds: [
-			successEmbed(
-				'Verification Roles Updated',
-				`Verified role: ${verifiedRole}\nUnverified role: ${unverifiedRole}${onJoinDisplay}`,
-			),
-		],
+		embeds: [successEmbed('On-Join Role Set', description)],
 	});
 }
 
