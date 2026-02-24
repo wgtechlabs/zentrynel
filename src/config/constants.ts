@@ -21,6 +21,7 @@ export const Colors = {
 	VERIFY_APPROVE: 0x2ecc71,
 	VERIFY_REJECT: 0xe74c3c,
 	VERIFY_RECHECK: 0x3498db,
+	VERIFY_KICK: 0xd35400,
 	INFO: 0x2ecc71,
 	ERROR: 0xe74c3c,
 };
@@ -35,6 +36,7 @@ export const ActionTypes = {
 	VERIFY_APPROVE: 'VERIFY_APPROVE',
 	VERIFY_REJECT: 'VERIFY_REJECT',
 	VERIFY_RECHECK: 'VERIFY_RECHECK',
+	VERIFY_KICK: 'VERIFY_KICK',
 };
 
 export const Defaults = {
@@ -49,4 +51,5 @@ export const Defaults = {
 	VERIFICATION_MAX_ATTEMPTS: 3,
 	DM_DISABLED: 0,
 	INVITES_DISABLED: 0,
+	VERIFICATION_KICK_TIMEOUT: 0,
 };
