@@ -9,9 +9,10 @@ A sharding-ready Discord moderation bot with an escalating strike system, built 
 
 ## Features
 
-- **Slash commands** — `/warn`, `/mute`, `/kick`, `/ban`, `/purge`, `/warnings`, `/config`.
+- **Slash commands** — `/warn`, `/mute`, `/kick`, `/ban`, `/purge`, `/warnings`, `/approve`, `/config`.
 - **Escalating strike system** — Configurable per-server thresholds that auto-mute, kick, or ban.
-- **Two-layer member verification** — In-server button + challenge flow with manual moderator fallback queue.
+- **Two-layer member verification** — In-server button + challenge flow with manual moderator fallback queue, auto-kick for stale unverified members, and manual review expiry.
+- **On-join role** — Automatically assign a role to new members on join, independent of verification.
 - **Sharding-ready** — Separate shard manager and client entry points, scales to thousands of servers.
 - **Swappable database** — Abstracted DB layer on `bun:sqlite`, swap to PostgreSQL with one import change.
 - **DM & invite disabler** — Disable member-to-member DMs and/or invite creation server-wide, automatically maintained.
@@ -61,15 +62,19 @@ bun run dev
 | `/ban <user> [reason] [delete_messages]` | Ban Members | Ban a user |
 | `/purge <amount> [user]` | Manage Messages | Bulk delete messages |
 | `/warnings <user>` | Moderate Members | View active warnings |
+| `/approve <user> [reason]` | Moderate Members | Manually approve a member's verification |
 | `/config view` | Administrator | View server settings |
 | `/config logchannel <channel>` | Administrator | Set mod log channel |
 | `/config thresholds [mute] [kick] [ban]` | Administrator | Set strike thresholds |
 | `/config muteduration <duration>` | Administrator | Set default mute duration |
+| `/config onjoinrole [role]` | Administrator | Set or clear the auto-assigned on-join role |
 | `/config verificationenable <enabled>` | Administrator | Enable/disable member verification |
 | `/config verificationchannels <verify> <review>` | Administrator | Set verify and review channels |
 | `/config verificationroles <verified> <unverified>` | Administrator | Set verified/unverified roles |
 | `/config verificationrules [minage] [maxattempts]` | Administrator | Set account-age (e.g. 24h, 2d) and retry rules |
 | `/config verificationpanel` | Administrator | Post verification button panel |
+| `/config verificationkick [timeout]` | Administrator | Auto-kick unverified members after a timeout |
+| `/config manualreviewtimeout [timeout]` | Administrator | Auto-expire manual reviews after a timeout |
 | `/config disabledms <disable>` | Administrator | Disable or re-enable DMs server-wide |
 | `/config disableinvites <disable>` | Administrator | Disable or re-enable server invites |
 | `/config reset` | Administrator | Reset to defaults |
@@ -99,6 +104,21 @@ Verification is fully in-server (no DMs):
 4. Members click **Start Verification** in the verify channel:
    - If automated checks + challenge pass, bot grants verified role.
    - If risk/failure is detected, bot queues member in review channel for moderator action.
+5. Moderators can approve, kick, or ban members directly from the review embed, or use `/approve <user>` to manually verify a member.
+
+### Verification Automation
+
+- **Auto-kick unverified members** — `/config verificationkick timeout:1h` kicks members who don't complete verification within the specified duration. Omit the timeout to disable.
+- **Manual review expiry** — `/config manualreviewtimeout timeout:3d` auto-expires stale manual reviews and kicks the member. A reminder is sent before expiry. Omit the timeout to disable.
+
+## On-Join Role
+
+Automatically assign a role to every new member when they join the server:
+
+- `/config onjoinrole role:@NewMember` — Set the auto-assigned role.
+- `/config onjoinrole` — Clear the on-join role (omit the role option).
+
+The on-join role is independent of verification. If verification is enabled, the on-join role is removed when a member is verified or rejected.
 
 ## DM & Invite Disabler
 
@@ -116,12 +136,12 @@ Discord limits the disable window to 24 hours. The bot automatically re-extends 
 
 ```
 src/
-├── index.js            # ShardingManager entry point
-├── bot.js              # Per-shard client
+├── index.ts            # ShardingManager entry point
+├── bot.ts              # Per-shard client
 ├── commands/           # Slash commands (auto-discovered)
 ├── events/             # Event handlers (auto-discovered)
 ├── handlers/           # Command/event loaders, command registrar
-├── services/           # Moderation logic, mod log
+├── services/           # Moderation, verification, mod log, sweeps
 ├── db/                 # Abstracted database layer
 ├── config/             # Environment, constants
 └── utils/              # Logger, embeds, permissions, time parsing
