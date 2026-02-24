@@ -163,6 +163,17 @@ export const data = new SlashCommandBuilder()
 	)
 	.addSubcommand((sub) =>
 		sub
+			.setName('manualreviewtimeout')
+			.setDescription('Auto-expire manual reviews after a timeout (kick on expiry)')
+			.addStringOption((option) =>
+				option
+					.setName('timeout')
+					.setDescription('Duration before review expires (e.g. 3d, 7d). Omit to disable.')
+					.setMaxLength(10),
+			),
+	)
+	.addSubcommand((sub) =>
+		sub
 			.setName('disabledms')
 			.setDescription('Permanently disable or re-enable DMs server-wide')
 			.addBooleanOption((option) =>
@@ -210,6 +221,8 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 			return handleVerificationPanel(interaction);
 		case 'verificationkick':
 			return handleVerificationKick(interaction);
+		case 'manualreviewtimeout':
+			return handleManualReviewTimeout(interaction);
 		case 'onjoinrole':
 			return handleOnJoinRole(interaction);
 		case 'disabledms':
@@ -277,6 +290,15 @@ async function handleView(interaction: ChatInputCommandInteraction): Promise<voi
 					? config.verification_enabled
 						? `After **${formatDuration(config.verification_kick_timeout)}**`
 						: `After **${formatDuration(config.verification_kick_timeout)}** _(paused — verification disabled)_`
+					: 'Disabled',
+				inline: true,
+			},
+			{
+				name: 'Manual Review Timeout',
+				value: config.manual_review_timeout
+					? config.verification_enabled
+						? `After **${formatDuration(config.manual_review_timeout)}**`
+						: `After **${formatDuration(config.manual_review_timeout)}** _(paused — verification disabled)_`
 					: 'Disabled',
 				inline: true,
 			},
@@ -822,6 +844,95 @@ async function handleVerificationKick(interaction: ChatInputCommandInteraction):
 			successEmbed(
 				'Verification Auto-Kick Enabled',
 				`Members who remain unverified for more than **${formatDuration(ms)}** will be automatically kicked.${warning}`,
+			),
+		],
+	});
+}
+
+async function handleManualReviewTimeout(interaction: ChatInputCommandInteraction): Promise<void> {
+	if (!interaction.guildId) return;
+
+	const timeoutRaw = interaction.options.getString('timeout');
+
+	// Disable manual review timeout if no timeout provided
+	if (!timeoutRaw) {
+		const config = db.getGuildConfig(interaction.guildId);
+		const wasEnabled = config.manual_review_timeout > 0;
+
+		db.upsertGuildConfig(interaction.guildId, { manual_review_timeout: 0 });
+
+		if (!wasEnabled) {
+			return interaction.reply({
+				embeds: [
+					successEmbed(
+						'Manual Review Timeout',
+						'Manual review timeout is already disabled.',
+					),
+				],
+				flags: [MessageFlags.Ephemeral],
+			});
+		}
+
+		return interaction.reply({
+			embeds: [
+				successEmbed(
+					'Manual Review Timeout',
+					'Manual review timeout has been **disabled**. Reviews will no longer auto-expire.',
+				),
+			],
+		});
+	}
+
+	const ms = parseDuration(timeoutRaw);
+	if (!ms) {
+		return interaction.reply({
+			embeds: [errorEmbed('Invalid duration format. Use: `1d`, `3d`, `7d`')],
+			flags: [MessageFlags.Ephemeral],
+		});
+	}
+
+	const minTimeout = 24 * 60 * 60 * 1000;
+	const maxTimeout = 30 * 24 * 60 * 60 * 1000;
+
+	if (ms < minTimeout) {
+		return interaction.reply({
+			embeds: [errorEmbed('Timeout must be at least **1 day** to give moderators time to review.')],
+			flags: [MessageFlags.Ephemeral],
+		});
+	}
+
+	if (ms > maxTimeout) {
+		return interaction.reply({
+			embeds: [errorEmbed('Timeout cannot exceed **30 days**.')],
+			flags: [MessageFlags.Ephemeral],
+		});
+	}
+
+	const config = db.getGuildConfig(interaction.guildId);
+
+	if (!config.verification_enabled) {
+		return interaction.reply({
+			embeds: [
+				errorEmbed(
+					'Enable verification first using `/config verificationenable enabled:true` before setting a review timeout.',
+				),
+			],
+			flags: [MessageFlags.Ephemeral],
+		});
+	}
+
+	db.upsertGuildConfig(interaction.guildId, { manual_review_timeout: ms });
+
+	// Reset reminder flags so existing reviews re-evaluate against the new threshold
+	db.resetReviewReminders(interaction.guildId);
+
+	const warningDuration = formatDuration(Math.floor(ms * 0.75));
+
+	await interaction.reply({
+		embeds: [
+			successEmbed(
+				'Manual Review Timeout Enabled',
+				`Manual reviews will auto-expire after **${formatDuration(ms)}**.\nModerators will be warned at ~**${warningDuration}**.\n\n⚠️ Existing reviews past this timeout will begin expiring within a few minutes.`,
 			),
 		],
 	});
