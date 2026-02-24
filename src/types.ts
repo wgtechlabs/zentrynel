@@ -34,6 +34,7 @@ export interface GuildConfig {
 	warn_threshold_ban: number;
 	mute_duration_default: number;
 	verification_kick_timeout: number;
+	manual_review_timeout: number;
 	dm_disabled: number;
 	invites_disabled: number;
 	created_at?: string;
@@ -51,6 +52,7 @@ export interface VerificationState {
 	review_message_id: string | null;
 	manual_reason: string | null;
 	last_challenge_at: string | null;
+	review_reminded: number;
 	invite_code: string | null;
 	created_at?: string;
 	updated_at?: string;

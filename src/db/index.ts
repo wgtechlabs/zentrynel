@@ -1,5 +1,5 @@
 import type { GuildConfig, ModAction, VerificationState, Warning } from '../types.js';
-import type { StaleVerificationRow } from './sqlite.js';
+import type { StaleManualReviewRow, StaleVerificationRow } from './sqlite.js';
 import * as driver from './sqlite.js';
 
 export const db = {
@@ -13,6 +13,10 @@ export const db = {
 	getGuildsWithIncidentActions: (): GuildConfig[] => driver.getGuildsWithIncidentActions(),
 	getStaleVerificationStates: (): StaleVerificationRow[] =>
 		driver.getStaleVerificationStates(),
+	getRemindableManualReviews: (): StaleManualReviewRow[] =>
+		driver.getRemindableManualReviews(),
+	getExpiredManualReviews: (): StaleManualReviewRow[] =>
+		driver.getExpiredManualReviews(),
 
 	getVerificationState: (guildId: string, userId: string): VerificationState | null =>
 		driver.getVerificationState(guildId, userId),
@@ -23,6 +27,8 @@ export const db = {
 	): void => driver.upsertVerificationState(guildId, userId, state),
 	deleteVerificationState: (guildId: string, userId: string): void =>
 		driver.deleteVerificationState(guildId, userId),
+	resetReviewReminders: (guildId: string): void =>
+		driver.resetReviewReminders(guildId),
 
 	addWarning: (
 		guildId: string,

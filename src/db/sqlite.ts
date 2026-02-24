@@ -57,6 +57,7 @@ const defaultConfig: Omit<GuildConfig, 'guild_id' | 'created_at' | 'updated_at'>
 	warn_threshold_ban: Defaults.WARN_THRESHOLD_BAN,
 	mute_duration_default: Defaults.MUTE_DURATION_MS,
 	verification_kick_timeout: Defaults.VERIFICATION_KICK_TIMEOUT,
+	manual_review_timeout: Defaults.MANUAL_REVIEW_TIMEOUT,
 	dm_disabled: Defaults.DM_DISABLED,
 	invites_disabled: Defaults.INVITES_DISABLED,
 };
@@ -91,6 +92,7 @@ export function upsertGuildConfig(guildId: string, config: Partial<GuildConfig>)
 				warn_threshold_ban,
 				mute_duration_default,
 				verification_kick_timeout,
+				manual_review_timeout,
 				dm_disabled,
 				invites_disabled,
 				updated_at
@@ -112,6 +114,7 @@ export function upsertGuildConfig(guildId: string, config: Partial<GuildConfig>)
 				$warn_threshold_ban,
 				$mute_duration_default,
 				$verification_kick_timeout,
+				$manual_review_timeout,
 				$dm_disabled,
 				$invites_disabled,
 				datetime('now')
@@ -132,6 +135,7 @@ export function upsertGuildConfig(guildId: string, config: Partial<GuildConfig>)
 				warn_threshold_ban = $warn_threshold_ban,
 				mute_duration_default = $mute_duration_default,
 				verification_kick_timeout = $verification_kick_timeout,
+				manual_review_timeout = $manual_review_timeout,
 				dm_disabled = $dm_disabled,
 				invites_disabled = $invites_disabled,
 				updated_at = datetime('now')
@@ -153,6 +157,7 @@ export function upsertGuildConfig(guildId: string, config: Partial<GuildConfig>)
 			$warn_threshold_ban: merged.warn_threshold_ban,
 			$mute_duration_default: merged.mute_duration_default,
 			$verification_kick_timeout: merged.verification_kick_timeout,
+			$manual_review_timeout: merged.manual_review_timeout,
 			$dm_disabled: merged.dm_disabled,
 			$invites_disabled: merged.invites_disabled,
 		});
@@ -178,6 +183,10 @@ export interface StaleVerificationRow {
 	verification_kick_timeout: number;
 }
 
+/**
+ * Get PENDING members who've exceeded the verification_kick_timeout,
+ * plus REJECTED/REVIEW_EXPIRED members eligible for auto-kick.
+ */
 export function getStaleVerificationStates(): StaleVerificationRow[] {
 	return (
 		(getDatabase()
@@ -185,14 +194,77 @@ export function getStaleVerificationStates(): StaleVerificationRow[] {
 				SELECT vs.guild_id, vs.user_id, vs.status, vs.created_at, gc.verification_kick_timeout
 				FROM verification_state vs
 				JOIN guild_config gc ON vs.guild_id = gc.guild_id
-				WHERE vs.status = 'PENDING'
-					AND gc.verification_enabled = 1
+				WHERE gc.verification_enabled = 1
 					AND gc.verification_kick_timeout > 0
-					AND datetime(vs.created_at) <= datetime('now', '-' || CAST(gc.verification_kick_timeout / 1000 AS TEXT) || ' seconds')
+					AND (
+						(vs.status = 'PENDING'
+							AND datetime(vs.created_at) <= datetime('now', '-' || CAST(gc.verification_kick_timeout / 1000 AS TEXT) || ' seconds'))
+						OR vs.status IN ('REJECTED', 'REVIEW_EXPIRED')
+					)
 				ORDER BY vs.created_at ASC
 				LIMIT 200
 			`)
 			.all() as StaleVerificationRow[]) ?? []
+	);
+}
+
+export interface StaleManualReviewRow {
+	guild_id: string;
+	user_id: string;
+	status: string;
+	created_at: string;
+	review_message_id: string | null;
+	review_reminded: number;
+	manual_review_timeout: number;
+	review_channel_id: string | null;
+}
+
+/**
+ * Get MANUAL_REVIEW members past 75% of the manual_review_timeout
+ * who have NOT yet been reminded.
+ */
+export function getRemindableManualReviews(): StaleManualReviewRow[] {
+	return (
+		(getDatabase()
+			.query(`
+				SELECT vs.guild_id, vs.user_id, vs.status, vs.created_at,
+					vs.review_message_id, vs.review_reminded,
+					gc.manual_review_timeout, gc.review_channel_id
+				FROM verification_state vs
+				JOIN guild_config gc ON vs.guild_id = gc.guild_id
+				WHERE vs.status = 'MANUAL_REVIEW'
+					AND gc.verification_enabled = 1
+					AND gc.manual_review_timeout > 0
+					AND vs.review_reminded = 0
+					AND datetime(vs.created_at) <= datetime('now', '-' || CAST((gc.manual_review_timeout * 75 / 100) / 1000 AS TEXT) || ' seconds')
+				ORDER BY vs.created_at ASC
+				LIMIT 200
+			`)
+			.all() as StaleManualReviewRow[]) ?? []
+	);
+}
+
+/**
+ * Get MANUAL_REVIEW members past 100% of the manual_review_timeout
+ * (for expiry — status update + embed edit).
+ */
+export function getExpiredManualReviews(): StaleManualReviewRow[] {
+	return (
+		(getDatabase()
+			.query(`
+				SELECT vs.guild_id, vs.user_id, vs.status, vs.created_at,
+					vs.review_message_id, vs.review_reminded,
+					gc.manual_review_timeout, gc.review_channel_id
+				FROM verification_state vs
+				JOIN guild_config gc ON vs.guild_id = gc.guild_id
+				WHERE vs.status = 'MANUAL_REVIEW'
+					AND gc.verification_enabled = 1
+					AND gc.manual_review_timeout > 0
+					AND datetime(vs.created_at) <= datetime('now', '-' || CAST(gc.manual_review_timeout / 1000 AS TEXT) || ' seconds')
+				ORDER BY vs.created_at ASC
+				LIMIT 200
+			`)
+			.all() as StaleManualReviewRow[]) ?? []
 	);
 }
 
@@ -210,6 +282,7 @@ const defaultVerificationState: Omit<
 	review_message_id: null,
 	manual_reason: null,
 	last_challenge_at: null,
+	review_reminded: 0,
 	invite_code: null,
 };
 
@@ -242,6 +315,7 @@ export function upsertVerificationState(
 				review_message_id,
 				manual_reason,
 				last_challenge_at,
+				review_reminded,
 				invite_code,
 				updated_at
 			)
@@ -256,6 +330,7 @@ export function upsertVerificationState(
 				$review_message_id,
 				$manual_reason,
 				$last_challenge_at,
+				$review_reminded,
 				$invite_code,
 				datetime('now')
 			)
@@ -268,6 +343,7 @@ export function upsertVerificationState(
 				review_message_id = $review_message_id,
 				manual_reason = $manual_reason,
 				last_challenge_at = $last_challenge_at,
+				review_reminded = $review_reminded,
 				invite_code = $invite_code,
 				updated_at = datetime('now')
 		`)
@@ -282,6 +358,7 @@ export function upsertVerificationState(
 			$review_message_id: merged.review_message_id,
 			$manual_reason: merged.manual_reason,
 			$last_challenge_at: merged.last_challenge_at,
+			$review_reminded: merged.review_reminded,
 			$invite_code: merged.invite_code,
 		});
 }
@@ -290,6 +367,19 @@ export function deleteVerificationState(guildId: string, userId: string): void {
 	getDatabase()
 		.query('DELETE FROM verification_state WHERE guild_id = ? AND user_id = ?')
 		.run(guildId, userId);
+}
+
+/**
+ * Reset review_reminded to 0 for all MANUAL_REVIEW states in a guild.
+ * Called when an admin changes the manual_review_timeout so the 75% threshold
+ * is re-evaluated against the new duration.
+ */
+export function resetReviewReminders(guildId: string): void {
+	getDatabase()
+		.query(
+			"UPDATE verification_state SET review_reminded = 0 WHERE guild_id = ? AND status = 'MANUAL_REVIEW'",
+		)
+		.run(guildId);
 }
 
 // --- Warnings ---
