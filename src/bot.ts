@@ -5,6 +5,7 @@ import { loadCommands } from './handlers/commandLoader.js';
 import { registerCommands } from './handlers/commandRegistrar.js';
 import { loadEvents } from './handlers/eventLoader.js';
 import { stopIncidentActionsRefresh } from './services/incidentActions.js';
+import { stopVerificationSweep } from './services/verificationSweep.js';
 import type { Command } from './types.js';
 import { logger } from './utils/logger.js';
 
@@ -35,6 +36,7 @@ await client.login(env.DISCORD_TOKEN);
 function shutdown(): void {
 	logger.info('Shutting down...');
 	stopIncidentActionsRefresh();
+	stopVerificationSweep();
 	client.destroy();
 	db.close();
 	process.exit(0);

@@ -1,6 +1,7 @@
 import type { Client } from 'discord.js';
 import { startIncidentActionsRefresh } from '../services/incidentActions.js';
 import { cacheGuildInvites } from '../services/inviteTracker.js';
+import { startVerificationSweep } from '../services/verificationSweep.js';
 import { logger } from '../utils/logger.js';
 
 export const name = 'clientReady';
@@ -14,4 +15,5 @@ export async function execute(client: Client): Promise<void> {
 	await Promise.allSettled(client.guilds.cache.map((guild) => cacheGuildInvites(guild)));
 
 	startIncidentActionsRefresh(client);
+	startVerificationSweep(client);
 }
