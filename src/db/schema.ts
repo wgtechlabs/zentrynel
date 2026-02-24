@@ -1,6 +1,6 @@
 import type { Database } from 'bun:sqlite';
 
-export const CURRENT_VERSION = 4;
+export const CURRENT_VERSION = 5;
 
 interface TableInfoRow {
 	cid: number;
@@ -48,6 +48,7 @@ export function createTables(database: Database): void {
 			warn_threshold_kick INTEGER NOT NULL DEFAULT 5,
 			warn_threshold_ban INTEGER NOT NULL DEFAULT 7,
 			mute_duration_default INTEGER NOT NULL DEFAULT 600000,
+			verification_kick_timeout INTEGER NOT NULL DEFAULT 0,
 			dm_disabled INTEGER NOT NULL DEFAULT 0,
 			invites_disabled INTEGER NOT NULL DEFAULT 0,
 			created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -133,6 +134,7 @@ export function createTables(database: Database): void {
 		'verification_max_attempts INTEGER NOT NULL DEFAULT 3',
 		'dm_disabled INTEGER NOT NULL DEFAULT 0',
 		'invites_disabled INTEGER NOT NULL DEFAULT 0',
+		'verification_kick_timeout INTEGER NOT NULL DEFAULT 0',
 	]);
 	ensureColumnsExist(database, 'verification_state', [
 		'invite_code TEXT',

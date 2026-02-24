@@ -1,4 +1,5 @@
 import type { GuildConfig, ModAction, VerificationState, Warning } from '../types.js';
+import type { StaleVerificationRow } from './sqlite.js';
 import * as driver from './sqlite.js';
 
 export const db = {
@@ -10,6 +11,8 @@ export const db = {
 		driver.upsertGuildConfig(guildId, config),
 	deleteGuildConfig: (guildId: string): void => driver.deleteGuildConfig(guildId),
 	getGuildsWithIncidentActions: (): GuildConfig[] => driver.getGuildsWithIncidentActions(),
+	getStaleVerificationStates: (): StaleVerificationRow[] =>
+		driver.getStaleVerificationStates(),
 
 	getVerificationState: (guildId: string, userId: string): VerificationState | null =>
 		driver.getVerificationState(guildId, userId),

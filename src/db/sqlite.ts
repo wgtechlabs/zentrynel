@@ -56,6 +56,7 @@ const defaultConfig: Omit<GuildConfig, 'guild_id' | 'created_at' | 'updated_at'>
 	warn_threshold_kick: Defaults.WARN_THRESHOLD_KICK,
 	warn_threshold_ban: Defaults.WARN_THRESHOLD_BAN,
 	mute_duration_default: Defaults.MUTE_DURATION_MS,
+	verification_kick_timeout: Defaults.VERIFICATION_KICK_TIMEOUT,
 	dm_disabled: Defaults.DM_DISABLED,
 	invites_disabled: Defaults.INVITES_DISABLED,
 };
@@ -89,6 +90,7 @@ export function upsertGuildConfig(guildId: string, config: Partial<GuildConfig>)
 				warn_threshold_kick,
 				warn_threshold_ban,
 				mute_duration_default,
+				verification_kick_timeout,
 				dm_disabled,
 				invites_disabled,
 				updated_at
@@ -109,6 +111,7 @@ export function upsertGuildConfig(guildId: string, config: Partial<GuildConfig>)
 				$warn_threshold_kick,
 				$warn_threshold_ban,
 				$mute_duration_default,
+				$verification_kick_timeout,
 				$dm_disabled,
 				$invites_disabled,
 				datetime('now')
@@ -128,6 +131,7 @@ export function upsertGuildConfig(guildId: string, config: Partial<GuildConfig>)
 				warn_threshold_kick = $warn_threshold_kick,
 				warn_threshold_ban = $warn_threshold_ban,
 				mute_duration_default = $mute_duration_default,
+				verification_kick_timeout = $verification_kick_timeout,
 				dm_disabled = $dm_disabled,
 				invites_disabled = $invites_disabled,
 				updated_at = datetime('now')
@@ -148,6 +152,7 @@ export function upsertGuildConfig(guildId: string, config: Partial<GuildConfig>)
 			$warn_threshold_kick: merged.warn_threshold_kick,
 			$warn_threshold_ban: merged.warn_threshold_ban,
 			$mute_duration_default: merged.mute_duration_default,
+			$verification_kick_timeout: merged.verification_kick_timeout,
 			$dm_disabled: merged.dm_disabled,
 			$invites_disabled: merged.invites_disabled,
 		});
@@ -162,6 +167,32 @@ export function getGuildsWithIncidentActions(): GuildConfig[] {
 		(getDatabase()
 			.query('SELECT * FROM guild_config WHERE dm_disabled = 1 OR invites_disabled = 1')
 			.all() as GuildConfig[]) ?? []
+	);
+}
+
+export interface StaleVerificationRow {
+	guild_id: string;
+	user_id: string;
+	status: string;
+	created_at: string;
+	verification_kick_timeout: number;
+}
+
+export function getStaleVerificationStates(): StaleVerificationRow[] {
+	return (
+		(getDatabase()
+			.query(`
+				SELECT vs.guild_id, vs.user_id, vs.status, vs.created_at, gc.verification_kick_timeout
+				FROM verification_state vs
+				JOIN guild_config gc ON vs.guild_id = gc.guild_id
+				WHERE vs.status = 'PENDING'
+					AND gc.verification_enabled = 1
+					AND gc.verification_kick_timeout > 0
+					AND datetime(vs.created_at) <= datetime('now', '-' || CAST(gc.verification_kick_timeout / 1000 AS TEXT) || ' seconds')
+				ORDER BY vs.created_at ASC
+				LIMIT 200
+			`)
+			.all() as StaleVerificationRow[]) ?? []
 	);
 }
 
