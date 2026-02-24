@@ -152,6 +152,17 @@ export const data = new SlashCommandBuilder()
 	)
 	.addSubcommand((sub) =>
 		sub
+			.setName('verificationkick')
+			.setDescription('Auto-kick members who fail to verify within a timeout')
+			.addStringOption((option) =>
+				option
+					.setName('timeout')
+					.setDescription('Duration before auto-kick (e.g. 15m, 1h, 2d). Omit to disable.')
+					.setMaxLength(10),
+			),
+	)
+	.addSubcommand((sub) =>
+		sub
 			.setName('disabledms')
 			.setDescription('Permanently disable or re-enable DMs server-wide')
 			.addBooleanOption((option) =>
@@ -197,6 +208,8 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 			return handleVerificationRules(interaction);
 		case 'verificationpanel':
 			return handleVerificationPanel(interaction);
+		case 'verificationkick':
+			return handleVerificationKick(interaction);
 		case 'onjoinrole':
 			return handleOnJoinRole(interaction);
 		case 'disabledms':
@@ -256,6 +269,15 @@ async function handleView(interaction: ChatInputCommandInteraction): Promise<voi
 			{
 				name: 'Verification Rules',
 				value: `Min account age: **${formatDuration(config.verification_min_account_age_hours * 3_600_000)}**\nMax attempts: **${config.verification_max_attempts}**`,
+				inline: true,
+			},
+			{
+				name: 'Verification Auto-Kick',
+				value: config.verification_kick_timeout
+					? config.verification_enabled
+						? `After **${formatDuration(config.verification_kick_timeout)}**`
+						: `After **${formatDuration(config.verification_kick_timeout)}** _(paused — verification disabled)_`
+					: 'Disabled',
 				inline: true,
 			},
 			{ name: '\u200b', value: '\u200b', inline: true },
@@ -720,6 +742,88 @@ async function handleVerificationPanel(interaction: ChatInputCommandInteraction)
 			),
 		],
 		flags: [MessageFlags.Ephemeral],
+	});
+}
+
+async function handleVerificationKick(interaction: ChatInputCommandInteraction): Promise<void> {
+	if (!interaction.guildId) return;
+
+	const timeoutRaw = interaction.options.getString('timeout');
+
+	// Disable auto-kick if no timeout provided
+	if (!timeoutRaw) {
+		const config = db.getGuildConfig(interaction.guildId);
+		const wasEnabled = config.verification_kick_timeout > 0;
+
+		db.upsertGuildConfig(interaction.guildId, { verification_kick_timeout: 0 });
+
+		if (!wasEnabled) {
+			return interaction.reply({
+				embeds: [successEmbed('Verification Auto-Kick', 'Verification auto-kick is already disabled.')],
+				flags: [MessageFlags.Ephemeral],
+			});
+		}
+
+		return interaction.reply({
+			embeds: [
+				successEmbed(
+					'Verification Auto-Kick',
+					'Verification auto-kick has been **disabled**. Unverified members will no longer be kicked automatically.',
+				),
+			],
+		});
+	}
+
+	const ms = parseDuration(timeoutRaw);
+	if (!ms) {
+		return interaction.reply({
+			embeds: [errorEmbed('Invalid duration format. Use: `15m`, `1h`, `2d`')],
+			flags: [MessageFlags.Ephemeral],
+		});
+	}
+
+	const minTimeout = 5 * 60 * 1000;
+	const maxTimeout = 7 * 24 * 60 * 60 * 1000;
+
+	if (ms < minTimeout) {
+		return interaction.reply({
+			embeds: [errorEmbed('Timeout must be at least **5 minutes** to prevent accidental kicks.')],
+			flags: [MessageFlags.Ephemeral],
+		});
+	}
+
+	if (ms > maxTimeout) {
+		return interaction.reply({
+			embeds: [errorEmbed('Timeout cannot exceed **7 days**.')],
+			flags: [MessageFlags.Ephemeral],
+		});
+	}
+
+	const config = db.getGuildConfig(interaction.guildId);
+
+	if (!config.verification_enabled) {
+		return interaction.reply({
+			embeds: [
+				errorEmbed(
+					'Enable verification first using `/config verificationenable enabled:true` before setting auto-kick.',
+				),
+			],
+			flags: [MessageFlags.Ephemeral],
+		});
+	}
+
+	db.upsertGuildConfig(interaction.guildId, { verification_kick_timeout: ms });
+
+	const warning =
+		'\n\n⚠️ Existing unverified members past this timeout will begin being removed within a few minutes.';
+
+	await interaction.reply({
+		embeds: [
+			successEmbed(
+				'Verification Auto-Kick Enabled',
+				`Members who remain unverified for more than **${formatDuration(ms)}** will be automatically kicked.${warning}`,
+			),
+		],
 	});
 }
 
