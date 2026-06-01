@@ -28,3 +28,14 @@ manager.spawn().catch((err: unknown) => {
 	logger.error('Failed to spawn shards:', err);
 	process.exit(1);
 });
+
+function shutdown(): void {
+	logger.info('Shard manager shutting down...');
+	for (const [, shard] of manager.shards) {
+		shard.kill();
+	}
+	process.exit(0);
+}
+
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);

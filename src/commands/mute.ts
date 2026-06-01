@@ -78,7 +78,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 	} catch (err) {
 		logger.error(`Failed to mute user ${targetUser.id} in guild ${interaction.guildId}:`, err);
 		await interaction.reply({
-			embeds: [errorEmbed(`Failed to mute the user: ${(err as Error).message}`)],
+			embeds: [errorEmbed('Failed to mute the user. Check my permissions and role hierarchy.')],
 			flags: [MessageFlags.Ephemeral],
 		});
 		return;
