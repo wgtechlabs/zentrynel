@@ -16,6 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+
+## [0.9.0] - 2026-06-01
+
+### Added
+
+- add landing page for zentrynel (#4)
+
 ## [0.8.0] - 2026-02-24
 
 ### Added
