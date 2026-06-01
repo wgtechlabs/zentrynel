@@ -76,6 +76,13 @@ code {
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border);
   z-index: 1000;
+  transition: height 0.3s, background 0.3s, box-shadow 0.3s;
+}
+
+.nav.scrolled {
+  height: 52px;
+  background: rgba(11, 13, 19, 0.95);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .nav-inner {
