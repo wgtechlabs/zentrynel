@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zentrynel — Discord Moderation Bot</title>
+  <meta name="description" content="A sharding-ready Discord moderation bot with an escalating strike system, two-layer verification, and per-server configuration. Built with Bun and discord.js v14.">
+  <meta name="theme-color" content="#5865F2">
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="Zentrynel — Discord Moderation Bot">
+  <meta property="og:description" content="Protect your community with slash commands, automatic escalation, and per-server configuration out of the box.">
+  <meta property="og:type" content="website">
+
+  <!-- Favicon (shield emoji as SVG) -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>">
+
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Navigation -->
+  <nav class="nav" id="nav">
+    <div class="nav-inner">
+      <a href="#" class="nav-logo">🛡️ Zentrynel</a>
+      <button class="nav-toggle" id="nav-toggle" aria-label="Toggle navigation">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <ul class="nav-links" id="nav-links">
+        <li><a href="#features">Features</a></li>
+        <li><a href="#commands">Commands</a></li>
+        <li><a href="#setup">Setup</a></li>
+        <li><a href="#self-hosting">Self-Host</a></li>
+        <li><a href="https://github.com/wgtechlabs/zentrynel" target="_blank" rel="noopener" class="nav-github">GitHub</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <header class="hero" id="hero">
+    <div class="hero-content">
+      <div class="hero-badge">Open Source &middot; GPLv3</div>
+      <h1>Zentrynel <span class="hero-emoji">🛡️🤖</span></h1>
+      <p class="hero-tagline">A sharding-ready Discord moderation bot with an escalating strike system. Protect your community with slash commands, automatic escalation, and per-server configuration out of the box.</p>
+      <div class="hero-actions">
+        <!-- Replace YOUR_CLIENT_ID with your bot's application client ID -->
+        <a href="https://discord.com/oauth2/authorize?client_id=YOUR_CLIENT_ID&permissions=1101659203590&integration_type=0&scope=bot+applications.commands" class="btn btn-primary">Add to Discord</a>
+        <a href="https://github.com/wgtechlabs/zentrynel" target="_blank" rel="noopener" class="btn btn-secondary">View on GitHub</a>
+      </div>
+      <div class="hero-tech">
+        <span class="tech-tag">Bun</span>
+        <span class="tech-tag">discord.js v14</span>
+        <span class="tech-tag">TypeScript</span>
+        <span class="tech-tag">SQLite</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Features -->
+  <section class="section" id="features">
+    <div class="container">
+      <h2 class="section-title">Features</h2>
+      <p class="section-subtitle">Everything you need to keep your Discord community safe and well-moderated.</p>
+      <div class="features-grid">
+
+        <div class="feature-card">
+          <div class="feature-icon">⚖️</div>
+          <h3>Escalating Strike System</h3>
+          <p>Warnings automatically escalate based on configurable thresholds — auto-mute at 3, auto-kick at 5, auto-ban at 7. Customize per server.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">🔐</div>
+          <h3>Two-Layer Verification</h3>
+          <p>In-server button + challenge flow with automatic checks and a moderator review fallback queue. No DMs required.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">🏷️</div>
+          <h3>On-Join Role</h3>
+          <p>Automatically assign a role to every new member when they join. Independent of verification — works alongside or without it.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">🚫</div>
+          <h3>DM &amp; Invite Disabler</h3>
+          <p>Disable member-to-member DMs and invite creation server-wide. Auto-extends every 12 hours to stay permanent.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">⚙️</div>
+          <h3>Per-Server Config</h3>
+          <p>Each server gets independent settings, log channels, strike history, and thresholds. Full control via <code>/config</code>.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">🌐</div>
+          <h3>Sharding-Ready</h3>
+          <p>Separate shard manager and client entry points. Scales effortlessly to thousands of servers without code changes.</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- Escalation -->
+  <section class="section section-alt" id="escalation">
+    <div class="container">
+      <h2 class="section-title">Automatic Escalation</h2>
+      <p class="section-subtitle">Warnings stack up — consequences follow automatically.</p>
+      <div class="escalation-steps">
+        <div class="escalation-step">
+          <div class="escalation-number">3</div>
+          <div class="escalation-label">warnings</div>
+          <div class="escalation-action">Auto-Mute</div>
+        </div>
+        <div class="escalation-arrow">→</div>
+        <div class="escalation-step">
+          <div class="escalation-number">5</div>
+          <div class="escalation-label">warnings</div>
+          <div class="escalation-action">Auto-Kick</div>
+        </div>
+        <div class="escalation-arrow">→</div>
+        <div class="escalation-step">
+          <div class="escalation-number">7</div>
+          <div class="escalation-label">warnings</div>
+          <div class="escalation-action">Auto-Ban</div>
+        </div>
+      </div>
+      <p class="escalation-note">Defaults shown — customize thresholds per server with <code>/config thresholds</code></p>
+    </div>
+  </section>
+
+  <!-- Commands -->
+  <section class="section" id="commands">
+    <div class="container">
+      <h2 class="section-title">Commands</h2>
+      <p class="section-subtitle">Powerful slash commands for every moderation need.</p>
+
+      <div class="commands-group">
+        <h3 class="commands-group-title">Moderation</h3>
+        <div class="commands-grid">
+          <div class="command-card">
+            <code>/warn &lt;user&gt; [reason]</code>
+            <span class="command-perm">Moderate Members</span>
+            <p>Issue a warning</p>
+          </div>
+          <div class="command-card">
+            <code>/mute &lt;user&gt; [duration] [reason]</code>
+            <span class="command-perm">Moderate Members</span>
+            <p>Timeout a user</p>
+          </div>
+          <div class="command-card">
+            <code>/kick &lt;user&gt; [reason]</code>
+            <span class="command-perm">Kick Members</span>
+            <p>Kick a user</p>
+          </div>
+          <div class="command-card">
+            <code>/ban &lt;user&gt; [reason] [delete_messages]</code>
+            <span class="command-perm">Ban Members</span>
+            <p>Ban a user</p>
+          </div>
+          <div class="command-card">
+            <code>/purge &lt;amount&gt; [user]</code>
+            <span class="command-perm">Manage Messages</span>
+            <p>Bulk delete messages</p>
+          </div>
+          <div class="command-card">
+            <code>/warnings &lt;user&gt;</code>
+            <span class="command-perm">Moderate Members</span>
+            <p>View active warnings</p>
+          </div>
+          <div class="command-card">
+            <code>/approve &lt;user&gt; [reason]</code>
+            <span class="command-perm">Moderate Members</span>
+            <p>Manually approve a member's verification</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="commands-group">
+        <h3 class="commands-group-title">Configuration</h3>
+        <div class="commands-grid">
+          <div class="command-card">
+            <code>/config view</code>
+            <span class="command-perm">Administrator</span>
+            <p>View server settings</p>
+          </div>
+          <div class="command-card">
+            <code>/config logchannel &lt;channel&gt;</code>
+            <span class="command-perm">Administrator</span>
+            <p>Set mod log channel</p>
+          </div>
+          <div class="command-card">
+            <code>/config thresholds [mute] [kick] [ban]</code>
+            <span class="command-perm">Administrator</span>
+            <p>Set strike thresholds</p>
+          </div>
+          <div class="command-card">
+            <code>/config muteduration &lt;duration&gt;</code>
+            <span class="command-perm">Administrator</span>
+            <p>Set default mute duration</p>
+          </div>
+          <div class="command-card">
+            <code>/config onjoinrole [role]</code>
+            <span class="command-perm">Administrator</span>
+            <p>Set or clear on-join role</p>
+          </div>
+          <div class="command-card">
+            <code>/config reset</code>
+            <span class="command-perm">Administrator</span>
+            <p>Reset to defaults</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Setup -->
+  <section class="section section-alt" id="setup">
+    <div class="container">
+      <h2 class="section-title">Quick Setup</h2>
+      <p class="section-subtitle">Get Zentrynel running in your server in minutes.</p>
+      <div class="setup-steps">
+        <div class="setup-step">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <h3>Invite the Bot</h3>
+            <p>Add Zentrynel to your Discord server with the required permissions.</p>
+            <a href="https://discord.com/oauth2/authorize?client_id=YOUR_CLIENT_ID&permissions=1101659203590&integration_type=0&scope=bot+applications.commands" class="btn btn-small">Invite Zentrynel</a>
+          </div>
+        </div>
+        <div class="setup-step">
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <h3>Set a Log Channel</h3>
+            <p>Configure where moderation actions are logged.</p>
+            <code>/config logchannel #mod-logs</code>
+          </div>
+        </div>
+        <div class="setup-step">
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <h3>Customize Thresholds</h3>
+            <p>Adjust the escalation thresholds to fit your community.</p>
+            <code>/config thresholds mute:3 kick:5 ban:7</code>
+          </div>
+        </div>
+        <div class="setup-step">
+          <div class="step-number">4</div>
+          <div class="step-content">
+            <h3>Start Moderating</h3>
+            <p>Use slash commands to warn, mute, kick, or ban members. The bot handles escalation automatically.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Self-Hosting -->
+  <section class="section" id="self-hosting">
+    <div class="container">
+      <h2 class="section-title">Self-Host It</h2>
+      <p class="section-subtitle">Zentrynel is fully open-source. Run your own instance with full control.</p>
+      <div class="selfhost-content">
+        <div class="selfhost-code">
+          <div class="code-header">Terminal</div>
+          <pre><code><span class="code-comment"># Clone and install</span>
+git clone https://github.com/wgtechlabs/zentrynel.git
+cd zentrynel
+bun install
+
+<span class="code-comment"># Configure</span>
+cp .env.example .env
+<span class="code-comment"># Edit .env with your bot token and client ID</span>
+
+<span class="code-comment"># Register commands and start</span>
+bun run register
+bun run start</code></pre>
+        </div>
+        <div class="selfhost-info">
+          <h3>One-Click Deploy</h3>
+          <p>Deploy instantly to Railway with zero configuration.</p>
+          <a href="https://railway.com/deploy/PPM7mm?referralCode=dTwT-i&utm_medium=integration&utm_source=template&utm_campaign=generic" target="_blank" rel="noopener">
+            <img src="https://railway.com/button.svg" alt="Deploy on Railway" width="180" height="40" loading="lazy">
+          </a>
+          <div class="selfhost-details">
+            <div class="detail-item">
+              <strong>License</strong>
+              <span>GPLv3</span>
+            </div>
+            <div class="detail-item">
+              <strong>Runtime</strong>
+              <span>Bun &ge; 1.0</span>
+            </div>
+            <div class="detail-item">
+              <strong>Database</strong>
+              <span>SQLite (swappable)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-inner">
+        <div class="footer-brand">
+          <span class="footer-logo">🛡️ Zentrynel</span>
+          <p>Discord moderation, done right.</p>
+        </div>
+        <div class="footer-links">
+          <div class="footer-col">
+            <h4>Project</h4>
+            <ul>
+              <li><a href="https://github.com/wgtechlabs/zentrynel" target="_blank" rel="noopener">GitHub</a></li>
+              <li><a href="https://github.com/wgtechlabs/zentrynel/issues" target="_blank" rel="noopener">Issues</a></li>
+              <li><a href="https://github.com/wgtechlabs/zentrynel/blob/main/LICENSE" target="_blank" rel="noopener">License (GPLv3)</a></li>
+              <li><a href="https://github.com/wgtechlabs/zentrynel/blob/main/CHANGELOG.md" target="_blank" rel="noopener">Changelog</a></li>
+            </ul>
+          </div>
+          <div class="footer-col">
+            <h4>WG Tech Labs</h4>
+            <ul>
+              <li><a href="https://github.com/wgtechlabs" target="_blank" rel="noopener">GitHub Org</a></li>
+              <li><a href="https://wgtechlabs.com" target="_blank" rel="noopener">Website</a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>&copy; <span id="year"></span> <a href="https://github.com/wgtechlabs" target="_blank" rel="noopener">WG Tech Labs</a>. All rights reserved.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
