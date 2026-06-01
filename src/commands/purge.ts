@@ -58,7 +58,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 	} catch (err) {
 		logger.error(`Failed to purge messages in channel ${channel.id}:`, err);
 		await interaction.editReply({
-			embeds: [errorEmbed(`Failed to purge messages: ${(err as Error).message}`)],
+			embeds: [errorEmbed('Failed to purge messages. Check my permissions in this channel.')],
 		});
 		return;
 	}

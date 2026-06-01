@@ -29,6 +29,7 @@ export function initialize(): void {
 	database = new Database(env.DB_PATH, { create: true });
 	database.run('PRAGMA journal_mode = WAL');
 	database.run('PRAGMA foreign_keys = ON');
+	database.run('PRAGMA secure_delete = ON');
 	createTables(database);
 }
 

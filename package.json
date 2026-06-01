@@ -22,13 +22,13 @@
     "bun": ">=1.0.0"
   },
   "dependencies": {
-    "@napi-rs/canvas": "^0.1.93",
+    "@napi-rs/canvas": "^0.1.100",
     "@wgtechlabs/log-engine": "^2.3.1",
-    "discord.js": "^14.18.0"
+    "discord.js": "^14.26.4"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
-    "@types/node": "^25.3.0",
+    "@types/node": "^25.9.1",
     "typescript": "^5.9.3"
   }
 }
