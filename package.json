@@ -24,11 +24,14 @@
   "dependencies": {
     "@napi-rs/canvas": "^0.1.93",
     "@wgtechlabs/log-engine": "^2.3.1",
-    "discord.js": "^14.18.0"
+    "discord.js": "^14.27.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
     "@types/node": "^25.3.0",
     "typescript": "^5.9.3"
+  },
+  "overrides": {
+    "undici": "6.28.1"
   }
 }
