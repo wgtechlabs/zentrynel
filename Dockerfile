@@ -1,4 +1,4 @@
-FROM oven/bun:1-alpine AS base
+FROM oven/bun:1.3.14-alpine AS base
 WORKDIR /app
 
 FROM base AS install
@@ -10,7 +10,8 @@ RUN apk add --no-cache fontconfig ttf-dejavu
 COPY --from=install /app/node_modules ./node_modules
 COPY src ./src
 COPY package.json .
-RUN mkdir -p data
+RUN mkdir -p data && chown -R bun:bun /app
+USER bun
 
 ENV NODE_ENV=production
 CMD ["bun", "run", "src/index.ts"]
