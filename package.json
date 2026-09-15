@@ -30,8 +30,5 @@
     "@biomejs/biome": "^1.9.4",
     "@types/node": "^25.3.0",
     "typescript": "^5.9.3"
-  },
-  "overrides": {
-    "undici": "6.28.1"
   }
 }
