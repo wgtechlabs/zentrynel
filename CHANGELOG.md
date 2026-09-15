@@ -17,6 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+
+## [0.9.1] - 2026-09-15
+
+### Changed
+
+- fix bot invite link (#7)
+
 ## [0.9.0] - 2026-06-01
 
 ### Added
