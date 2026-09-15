@@ -38,4 +38,4 @@ jobs:
       enable-release: true
       container-registry: both
       container-image-name: zentrynel
-      container-release-platforms: linux/amd64
+      container-release-platforms: linux/amd64,linux/arm64
