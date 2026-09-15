@@ -8,15 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [0.10.0] - 2026-09-15
 
+### Added
 
+- add invite URL to presence (#13)
 
+### Changed
 
+- adopt build flow orchestration (#8)
 
+### Security
 
-
-
-
+- patch alpine openssl packages
+- harden container dependencies
+- remediate code scanning alerts
 
 ## [0.9.1] - 2026-09-15
 
