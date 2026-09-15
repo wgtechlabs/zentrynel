@@ -14,7 +14,7 @@ mock.module('../../src/services/verificationSweep.js', () => ({
 
 const { execute } = await import('../../src/events/ready.js');
 
-test('sets an invite URL in the bot presence', async () => {
+test('sets the watching presence', async () => {
 	const presences: PresenceData[] = [];
 	const client = {
 		shard: null,
@@ -31,8 +31,8 @@ test('sets an invite URL in the bot presence', async () => {
 		{
 			activities: [
 				{
-					name: 'Custom Status',
-					state: 'Add me: https://wgtechlabs.com/zentrynel',
+					name: "I'm Watching You",
+					state: "I'm Watching You",
 					type: ActivityType.Custom,
 				},
 			],

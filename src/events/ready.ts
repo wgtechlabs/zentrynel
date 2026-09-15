@@ -15,8 +15,8 @@ export async function execute(client: Client): Promise<void> {
 	client.user?.setPresence({
 		activities: [
 			{
-				name: 'Custom Status',
-				state: 'Add me: https://wgtechlabs.com/zentrynel',
+				name: "I'm Watching You",
+				state: "I'm Watching You",
 				type: ActivityType.Custom,
 			},
 		],
