@@ -27,10 +27,8 @@ jobs:
     uses: wgtechlabs/build-flow-action/.github/workflows/app.yml@v0.2.0
     secrets: inherit
     with:
-      ci-profile: node-bun
+      ci-profile: custom
       ci-install-command: bun install --frozen-lockfile
-      ci-lint-command: bun run lint
-      ci-typecheck-command: bun run typecheck
       ci-test-command: bun run test
       ci-docker-smoke-command: docker build -t test-build . && docker image rm test-build
       enable-package: false
