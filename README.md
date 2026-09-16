@@ -36,7 +36,7 @@ DEV_GUILD_ID=your_test_guild_id  # optional, for instant command registration
 Invite the bot to your server (replace `YOUR_CLIENT_ID` with your application client ID):
 
 ```
-https://discord.com/oauth2/authorize?client_id=YOUR_CLIENT_ID&permissions=1101659203590&integration_type=0&scope=bot+applications.commands
+https://discord.com/oauth2/authorize?client_id=YOUR_CLIENT_ID&permissions=1101927640118&integration_type=0&scope=bot+applications.commands
 ```
 
 ## Usage
