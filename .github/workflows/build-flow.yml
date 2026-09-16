@@ -28,6 +28,7 @@ jobs:
     secrets: inherit
     with:
       ci-profile: node-bun
+      ci-matrix-versions: '["22","24","26"]'
       ci-install-command: bun install --frozen-lockfile
       ci-lint-command: true
       ci-typecheck-command: true

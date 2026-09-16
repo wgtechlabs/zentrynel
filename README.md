@@ -14,7 +14,7 @@ A sharding-ready Discord moderation bot with an escalating strike system, built 
 - **Two-layer member verification** — In-server button + challenge flow with manual moderator fallback queue, auto-kick for stale unverified members, and manual review expiry.
 - **On-join role** — Automatically assign a role to new members on join, independent of verification.
 - **Sharding-ready** — Separate shard manager and client entry points, scales to thousands of servers.
-- **Swappable database** — Abstracted DB layer on `bun:sqlite`, swap to PostgreSQL with one import change.
+- **Swappable database** — Abstracted DB layer on `better-sqlite3`, swap to PostgreSQL with one import change.
 - **DM & invite disabler** — Disable member-to-member DMs and/or invite creation server-wide, automatically maintained.
 - **Per-server config** — Each server gets independent settings, log channels, and strike history.
 

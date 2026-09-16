@@ -1,11 +1,12 @@
 {
   "name": "zentrynel",
   "version": "0.10.0",
-  "description": "Discord moderation bot with escalating strike system, built with Bun and discord.js v14.",
+  "description": "Discord moderation bot with escalating strike system, built with Node.js and discord.js v14.",
   "type": "module",
-  "main": "src/index.ts",
+  "main": "dist/index.js",
   "scripts": {
-    "start": "bun run src/index.ts",
+    "start": "node dist/index.js",
+    "build": "bun build src/index.ts --outdir dist --target node",
     "dev": "bun --watch run src/bot.ts",
     "bot": "bun run src/bot.ts",
     "register": "bun run src/handlers/commandRegistrar.ts",
@@ -19,18 +20,21 @@
   "author": "Waren Gonzaga",
   "license": "GPL-3.0",
   "engines": {
+    "node": ">=22.0.0",
     "bun": ">=1.0.0"
   },
   "dependencies": {
     "@napi-rs/canvas": "^0.1.93",
     "@wgtechlabs/log-engine": "^2.3.1",
+    "better-sqlite3": "^13.0.3",
     "discord.js": "^14.27.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/bun": "^1.4.2",
     "@types/node": "^25.3.0",
-    "typescript": "^5.9.3",
-    "bun-types": "^1.3.14"
+    "typescript": "^5.9.3"
   },
   "overrides": {
     "lodash": "^4.18.1",

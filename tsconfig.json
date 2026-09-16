@@ -1,18 +1,18 @@
 {
 	"compilerOptions": {
-		"target": "ESNext",
-		"module": "ESNext",
+		"target": "ES2022",
+		"module": "ES2022",
 		"moduleResolution": "bundler",
-		"lib": ["ESNext"],
-		"types": ["bun-types"],
+		"lib": ["ES2022"],
+		"types": ["node", "bun"],
 		"strict": true,
 		"noUncheckedIndexedAccess": true,
-		"exactOptionalPropertyTypes": true,
 		"skipLibCheck": true,
-		"outDir": "./dist",
-		"rootDir": "./",
+		"outDir": "dist",
+		"rootDir": ".",
 		"allowImportingTsExtensions": true,
-		"noEmit": true
+		"noEmit": true,
+		"esModuleInterop": true
 	},
 	"include": ["src/**/*", "tests/**/*"],
 	"exclude": ["node_modules", "dist"]
