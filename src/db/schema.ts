@@ -2,7 +2,7 @@ import type BetterSqlite3 from 'better-sqlite3';
 
 type Database = BetterSqlite3.Database;
 
-export const CURRENT_VERSION = 6;
+export const CURRENT_VERSION = 7;
 
 interface TableInfoRow {
 	cid: number;
@@ -52,11 +52,27 @@ export function createTables(database: Database): void {
 			mute_duration_default INTEGER NOT NULL DEFAULT 600000,
 			verification_kick_timeout INTEGER NOT NULL DEFAULT 0,
 			manual_review_timeout INTEGER NOT NULL DEFAULT 0,
+			verification_honeypot_enabled INTEGER NOT NULL DEFAULT 0,
 			dm_disabled INTEGER NOT NULL DEFAULT 0,
 			invites_disabled INTEGER NOT NULL DEFAULT 0,
 			created_at TEXT NOT NULL DEFAULT (datetime('now')),
 			updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 		)
+	`);
+
+	database.exec(`
+		CREATE TABLE IF NOT EXISTS honeypot_strikes (
+			guild_id TEXT NOT NULL,
+			user_id TEXT NOT NULL,
+			expires_at TEXT NOT NULL,
+			created_at TEXT NOT NULL DEFAULT (datetime('now')),
+			PRIMARY KEY (guild_id, user_id)
+		)
+	`);
+
+	database.exec(`
+		CREATE INDEX IF NOT EXISTS idx_honeypot_strikes_expires_at
+		ON honeypot_strikes(expires_at)
 	`);
 
 	database.exec(`
@@ -140,6 +156,7 @@ export function createTables(database: Database): void {
 		'invites_disabled INTEGER NOT NULL DEFAULT 0',
 		'verification_kick_timeout INTEGER NOT NULL DEFAULT 0',
 		'manual_review_timeout INTEGER NOT NULL DEFAULT 0',
+		'verification_honeypot_enabled INTEGER NOT NULL DEFAULT 0',
 	]);
 	ensureColumnsExist(database, 'verification_state', [
 		'review_reminded INTEGER NOT NULL DEFAULT 0',

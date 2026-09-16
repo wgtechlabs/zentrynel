@@ -163,6 +163,17 @@ export const data = new SlashCommandBuilder()
 	)
 	.addSubcommand((sub) =>
 		sub
+			.setName('verificationhoneypot')
+			.setDescription('Warn, then ban members who post in the verify channel')
+			.addBooleanOption((option) =>
+				option
+					.setName('enabled')
+					.setDescription('Enable or disable the verification-channel honeypot')
+					.setRequired(true),
+			),
+	)
+	.addSubcommand((sub) =>
+		sub
 			.setName('manualreviewtimeout')
 			.setDescription('Auto-expire manual reviews after a timeout (kick on expiry)')
 			.addStringOption((option) =>
@@ -221,6 +232,8 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 			return handleVerificationPanel(interaction);
 		case 'verificationkick':
 			return handleVerificationKick(interaction);
+		case 'verificationhoneypot':
+			return handleVerificationHoneypot(interaction);
 		case 'manualreviewtimeout':
 			return handleManualReviewTimeout(interaction);
 		case 'onjoinrole':
@@ -290,6 +303,15 @@ async function handleView(interaction: ChatInputCommandInteraction): Promise<voi
 					? config.verification_enabled
 						? `After **${formatDuration(config.verification_kick_timeout)}**`
 						: `After **${formatDuration(config.verification_kick_timeout)}** _(paused — verification disabled)_`
+					: 'Disabled',
+				inline: true,
+			},
+			{
+				name: 'Verification Honeypot',
+				value: config.verification_honeypot_enabled
+					? config.verify_channel_id
+						? `Enabled in <#${config.verify_channel_id}>`
+						: 'Enabled, but verify channel is not set'
 					: 'Disabled',
 				inline: true,
 			},
@@ -781,7 +803,9 @@ async function handleVerificationKick(interaction: ChatInputCommandInteraction):
 
 		if (!wasEnabled) {
 			return interaction.reply({
-				embeds: [successEmbed('Verification Auto-Kick', 'Verification auto-kick is already disabled.')],
+				embeds: [
+					successEmbed('Verification Auto-Kick', 'Verification auto-kick is already disabled.'),
+				],
 				flags: [MessageFlags.Ephemeral],
 			});
 		}
@@ -849,6 +873,74 @@ async function handleVerificationKick(interaction: ChatInputCommandInteraction):
 	});
 }
 
+async function handleVerificationHoneypot(interaction: ChatInputCommandInteraction): Promise<void> {
+	if (!interaction.guildId || !interaction.guild) return;
+
+	const enabled = interaction.options.getBoolean('enabled', true);
+	if (!enabled) {
+		db.upsertGuildConfig(interaction.guildId, { verification_honeypot_enabled: 0 });
+		return interaction.reply({
+			embeds: [
+				successEmbed(
+					'Verification Honeypot Disabled',
+					'Messages in the verify channel will no longer trigger honeypot enforcement.',
+				),
+			],
+		});
+	}
+
+	const config = db.getGuildConfig(interaction.guildId);
+	if (!config.verify_channel_id) {
+		return interaction.reply({
+			embeds: [errorEmbed('Set a verify channel first using `/config verificationchannels`.')],
+			flags: [MessageFlags.Ephemeral],
+		});
+	}
+
+	const botMember = interaction.guild.members.me;
+	if (!botMember) {
+		return interaction.reply({
+			embeds: [errorEmbed('Unable to resolve my own permissions.')],
+			flags: [MessageFlags.Ephemeral],
+		});
+	}
+
+	const verifyChannel =
+		interaction.guild.channels.cache.get(config.verify_channel_id) ??
+		(await interaction.guild.channels.fetch(config.verify_channel_id).catch(() => null));
+	if (!verifyChannel || verifyChannel.type !== ChannelType.GuildText) {
+		return interaction.reply({
+			embeds: [errorEmbed('The configured verify channel is missing or is not a text channel.')],
+			flags: [MessageFlags.Ephemeral],
+		});
+	}
+
+	const channelPermissions = verifyChannel.permissionsFor(botMember);
+	if (
+		!botMember.permissions.has(PermissionFlagsBits.BanMembers) ||
+		!channelPermissions?.has(['ViewChannel', 'ManageMessages', 'SendMessages', 'EmbedLinks'])
+	) {
+		return interaction.reply({
+			embeds: [
+				errorEmbed(
+					'I need **Ban Members**, plus **View Channel**, **Manage Messages**, **Send Messages**, and **Embed Links** in the verify channel.',
+				),
+			],
+			flags: [MessageFlags.Ephemeral],
+		});
+	}
+
+	db.upsertGuildConfig(interaction.guildId, { verification_honeypot_enabled: 1 });
+	await interaction.reply({
+		embeds: [
+			successEmbed(
+				'Verification Honeypot Enabled',
+				`Posts in <#${config.verify_channel_id}> are deleted. The first post receives a three-minute warning; another post within 24 hours is permanently banned.`,
+			),
+		],
+	});
+}
+
 async function handleManualReviewTimeout(interaction: ChatInputCommandInteraction): Promise<void> {
 	if (!interaction.guildId) return;
 
@@ -864,10 +956,7 @@ async function handleManualReviewTimeout(interaction: ChatInputCommandInteractio
 		if (!wasEnabled) {
 			return interaction.reply({
 				embeds: [
-					successEmbed(
-						'Manual Review Timeout',
-						'Manual review timeout is already disabled.',
-					),
+					successEmbed('Manual Review Timeout', 'Manual review timeout is already disabled.'),
 				],
 				flags: [MessageFlags.Ephemeral],
 			});
@@ -960,7 +1049,12 @@ async function handleIncidentAction(
 	const invitesDisabled = field === 'invites_disabled' ? disable : config.invites_disabled === 1;
 
 	try {
-		await applyIncidentActions(interaction.client, interaction.guildId, dmDisabled, invitesDisabled);
+		await applyIncidentActions(
+			interaction.client,
+			interaction.guildId,
+			dmDisabled,
+			invitesDisabled,
+		);
 	} catch {
 		return interaction.reply({
 			embeds: [
