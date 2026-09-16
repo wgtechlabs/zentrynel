@@ -8,6 +8,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [0.12.0] - 2026-09-16
+
+### Added
+
+- add community-focused landing page (#18)
+- add honeypot enforcement (#19)
+
+### Changed
+
+- update build flow to v0.2.1 (#16)
+
+## [0.11.0] - 2026-09-16
+
+### Added
+
+- add version command and update bot presence
+
+### Changed
+
+- include bot version on ready
+
 ## [0.10.0] - 2026-09-15
 
 ### Added
