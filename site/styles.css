@@ -99,10 +99,18 @@ code {
   font-size: 1.25rem;
   font-weight: 700;
   color: var(--text-primary);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .nav-logo:hover {
   color: var(--text-primary);
+}
+
+.brand-icon {
+  width: 1.5em;
+  height: 1.5em;
 }
 
 .nav-links {
@@ -155,12 +163,31 @@ code {
 
 /* === Hero === */
 .hero {
-  padding: 160px 24px 100px;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  margin-top: var(--nav-height);
+  padding: 96px 24px 100px;
   text-align: center;
-  background: radial-gradient(ellipse at 50% 0%, rgba(88, 101, 242, 0.12) 0%, transparent 60%);
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(88, 101, 242, 0.2) 0%, transparent 60%),
+    linear-gradient(rgba(11, 13, 19, 0.76), rgba(11, 13, 19, 0.92)),
+    url('hero-background.png') center / cover no-repeat;
+}
+
+.hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    linear-gradient(to bottom, transparent 52%, var(--bg-primary) 100%);
+  pointer-events: none;
 }
 
 .hero-content {
+  position: relative;
+  z-index: 2;
   max-width: 720px;
   margin: 0 auto;
 }
@@ -186,8 +213,10 @@ code {
   margin-bottom: 20px;
 }
 
-.hero-emoji {
-  display: inline-block;
+.hero-icon {
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.14em;
 }
 
 .hero-tagline {
@@ -446,6 +475,7 @@ code {
 .setup-steps {
   max-width: 640px;
   margin: 0 auto;
+  list-style: none;
 }
 
 .setup-step {
@@ -488,6 +518,20 @@ code {
 .step-content code {
   display: inline-block;
   margin-top: 4px;
+}
+
+.verification-prerequisite {
+  max-width: 640px;
+  margin: 0 auto 20px;
+  padding: 16px 20px;
+  color: var(--text-secondary);
+  background: rgba(88, 101, 242, 0.08);
+  border: 1px solid rgba(88, 101, 242, 0.25);
+  border-radius: var(--radius-sm);
+}
+
+.verification-prerequisite strong {
+  color: var(--text-primary);
 }
 
 /* === Self-Hosting === */
@@ -593,7 +637,9 @@ code {
 .footer-logo {
   font-size: 1.25rem;
   font-weight: 700;
-  display: block;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   margin-bottom: 8px;
 }
 
@@ -726,7 +772,7 @@ code {
   }
 
   .hero {
-    padding: 120px 24px 72px;
+    padding: 56px 24px 72px;
   }
 
   .hero h1 {

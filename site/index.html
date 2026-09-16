@@ -3,17 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Zentrynel — Discord Moderation Bot</title>
-  <meta name="description" content="A sharding-ready Discord moderation bot with an escalating strike system, two-layer verification, and per-server configuration. Built with Bun and discord.js v14.">
+  <title>Zentrynel: Open-Source Discord Moderation</title>
+  <meta name="description" content="An open-source Discord moderation bot for open-source communities, with automatic escalation, member verification, and per-server configuration.">
   <meta name="theme-color" content="#5865F2">
 
   <!-- Open Graph -->
-  <meta property="og:title" content="Zentrynel — Discord Moderation Bot">
-  <meta property="og:description" content="Protect your community with slash commands, automatic escalation, and per-server configuration out of the box.">
+  <meta property="og:title" content="Zentrynel: Open-Source Discord Moderation">
+  <meta property="og:description" content="Community-controlled moderation for open-source Discord communities.">
   <meta property="og:type" content="website">
 
-  <!-- Favicon (shield emoji as SVG) -->
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>">
+  <link rel="icon" href="zentrynel-icon.svg" type="image/svg+xml">
 
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -21,7 +20,7 @@
   <!-- Navigation -->
   <nav class="nav" id="nav">
     <div class="nav-inner">
-      <a href="#" class="nav-logo">🛡️ Zentrynel</a>
+      <a href="#" class="nav-logo"><img src="zentrynel-icon.svg" alt="" class="brand-icon">Zentrynel</a>
       <button class="nav-toggle" id="nav-toggle" aria-label="Toggle navigation">
         <span></span>
         <span></span>
@@ -31,6 +30,7 @@
         <li><a href="#features">Features</a></li>
         <li><a href="#commands">Commands</a></li>
         <li><a href="#setup">Setup</a></li>
+        <li><a href="#verification">Verification</a></li>
         <li><a href="#self-hosting">Self-Host</a></li>
         <li><a href="https://github.com/wgtechlabs/zentrynel" target="_blank" rel="noopener" class="nav-github">GitHub</a></li>
       </ul>
@@ -41,11 +41,11 @@
   <header class="hero" id="hero">
     <div class="hero-content">
       <div class="hero-badge">Open Source &middot; GPLv3</div>
-      <h1>Zentrynel <span class="hero-emoji">🛡️🤖</span></h1>
-      <p class="hero-tagline">A sharding-ready Discord moderation bot with an escalating strike system. Protect your community with slash commands, automatic escalation, and per-server configuration out of the box.</p>
+      <h1>Zentrynel <img src="zentrynel-icon.svg" alt="" class="hero-icon"></h1>
+      <p class="hero-tagline">An open-source Discord moderation bot for open-source communities. Protect your contributors and maintainers with slash commands, automatic escalation, member verification, and per-server configuration.</p>
       <div class="hero-actions">
         <!-- Zentrynel application invite link -->
-        <a href="https://discord.com/oauth2/authorize?client_id=1473211927437119611&permissions=1101659203590&integration_type=0&scope=bot+applications.commands" class="btn btn-primary">Add to Discord</a>
+        <a href="https://discord.com/oauth2/authorize?client_id=1473211927437119611&permissions=1101927640118&integration_type=0&scope=bot+applications.commands" class="btn btn-primary">Add to Discord</a>
         <a href="https://github.com/wgtechlabs/zentrynel" target="_blank" rel="noopener" class="btn btn-secondary">View on GitHub</a>
       </div>
       <div class="hero-tech">
@@ -61,13 +61,13 @@
   <section class="section" id="features">
     <div class="container">
       <h2 class="section-title">Features</h2>
-      <p class="section-subtitle">Everything you need to keep your Discord community safe and well-moderated.</p>
+      <p class="section-subtitle">Community-controlled moderation tools for safe, welcoming open-source Discord communities.</p>
       <div class="features-grid">
 
         <div class="feature-card">
           <div class="feature-icon">⚖️</div>
           <h3>Escalating Strike System</h3>
-          <p>Warnings automatically escalate based on configurable thresholds — auto-mute at 3, auto-kick at 5, auto-ban at 7. Customize per server.</p>
+          <p>Warnings automatically escalate based on configurable thresholds: auto-mute at 3, auto-kick at 5, and auto-ban at 7. Customize per server.</p>
         </div>
 
         <div class="feature-card">
@@ -79,7 +79,7 @@
         <div class="feature-card">
           <div class="feature-icon">🏷️</div>
           <h3>On-Join Role</h3>
-          <p>Automatically assign a role to every new member when they join. Independent of verification — works alongside or without it.</p>
+          <p>Automatically assign a role to every new member when they join. Independent of verification, it works alongside or without it.</p>
         </div>
 
         <div class="feature-card">
@@ -108,7 +108,7 @@
   <section class="section section-alt" id="escalation">
     <div class="container">
       <h2 class="section-title">Automatic Escalation</h2>
-      <p class="section-subtitle">Warnings stack up — consequences follow automatically.</p>
+      <p class="section-subtitle">Warnings stack up. Consequences follow automatically.</p>
       <div class="escalation-steps">
         <div class="escalation-step">
           <div class="escalation-number">3</div>
@@ -128,7 +128,7 @@
           <div class="escalation-action">Auto-Ban</div>
         </div>
       </div>
-      <p class="escalation-note">Defaults shown — customize thresholds per server with <code>/config thresholds</code></p>
+      <p class="escalation-note">Defaults shown. Customize thresholds per server with <code>/config thresholds</code></p>
     </div>
   </section>
 
@@ -229,7 +229,7 @@
           <div class="step-content">
             <h3>Invite the Bot</h3>
             <p>Add Zentrynel to your Discord server with the required permissions.</p>
-            <a href="https://discord.com/oauth2/authorize?client_id=1473211927437119611&permissions=1101659203590&integration_type=0&scope=bot+applications.commands" class="btn btn-small">Invite Zentrynel</a>
+            <a href="https://discord.com/oauth2/authorize?client_id=1473211927437119611&permissions=1101927640118&integration_type=0&scope=bot+applications.commands" class="btn btn-small">Invite Zentrynel</a>
           </div>
         </div>
         <div class="setup-step">
@@ -259,11 +259,80 @@
     </div>
   </section>
 
+  <!-- Verification Setup -->
+  <section class="section" id="verification">
+    <div class="container">
+      <h2 class="section-title">Set Up Member Verification</h2>
+      <p class="section-subtitle">Use a self-service verification channel and a private review channel to protect your community without relying on DMs.</p>
+      <div class="verification-prerequisite">
+        <strong>Before you begin:</strong> Create <strong>Verified</strong> and <strong>Unverified</strong> roles, then place Zentrynel's role above both roles in Discord's role list.
+      </div>
+      <ol class="setup-steps">
+        <li class="setup-step">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <h3>Create Two Text Channels</h3>
+            <p>Create a member-facing verification channel and a moderator-only review channel.</p>
+          </div>
+        </li>
+        <li class="setup-step">
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <h3>Enable Verification</h3>
+            <p>Turn on the verification flow for your server.</p>
+            <code>/config verificationenable enabled:true</code>
+          </div>
+        </li>
+        <li class="setup-step">
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <h3>Choose the Channels</h3>
+            <p>Set the text channel where members verify and the channel where moderators review requests.</p>
+            <code>/config verificationchannels verify:#verification review:#verification-review</code>
+          </div>
+        </li>
+        <li class="setup-step">
+          <div class="step-number">4</div>
+          <div class="step-content">
+            <h3>Assign Verification Roles</h3>
+            <p>Choose the role granted after approval and the role assigned while a member is pending verification.</p>
+            <code>/config verificationroles verified:@Verified unverified:@Unverified</code>
+          </div>
+        </li>
+        <li class="setup-step">
+          <div class="step-number">5</div>
+          <div class="step-content">
+            <h3>Configure Verification Rules</h3>
+            <p>Optionally set a minimum account age and maximum automated challenge attempts.</p>
+            <code>/config verificationrules minage:24h maxattempts:3</code>
+          </div>
+        </li>
+        <li class="setup-step">
+          <div class="step-number">6</div>
+          <div class="step-content">
+            <h3>Add Safety Timeouts</h3>
+            <p>Optionally remove members who never verify and expire reviews that moderators do not resolve.</p>
+            <code>/config verificationkick timeout:1h</code>
+            <code>/config manualreviewtimeout timeout:3d</code>
+          </div>
+        </li>
+        <li class="setup-step">
+          <div class="step-number">7</div>
+          <div class="step-content">
+            <h3>Post the Verification Panel</h3>
+            <p>Post the Start Verification button in the configured verification channel.</p>
+            <code>/config verificationpanel</code>
+          </div>
+        </li>
+      </ol>
+    </div>
+  </section>
+
   <!-- Self-Hosting -->
   <section class="section" id="self-hosting">
     <div class="container">
       <h2 class="section-title">Self-Host It</h2>
-      <p class="section-subtitle">Zentrynel is fully open-source. Run your own instance with full control.</p>
+      <p class="section-subtitle">Zentrynel is fully open-source. Run your own instance and keep moderation in your community's control.</p>
       <div class="selfhost-content">
         <div class="selfhost-code">
           <div class="code-header">Terminal</div>
@@ -310,8 +379,8 @@ bun run start</code></pre>
     <div class="container">
       <div class="footer-inner">
         <div class="footer-brand">
-          <span class="footer-logo">🛡️ Zentrynel</span>
-          <p>Discord moderation, done right.</p>
+          <span class="footer-logo"><img src="zentrynel-icon.svg" alt="" class="brand-icon">Zentrynel</span>
+          <p>Open-source moderation for open-source communities.</p>
         </div>
         <div class="footer-links">
           <div class="footer-col">
