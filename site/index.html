@@ -77,6 +77,12 @@
         </div>
 
         <div class="feature-card">
+          <div class="feature-icon">🍯</div>
+          <h3>Verification Honeypot</h3>
+          <p>Protect the verification channel by deleting posts, warning the member, and permanently banning repeat posts within 24 hours.</p>
+        </div>
+
+        <div class="feature-card">
           <div class="feature-icon">🏷️</div>
           <h3>On-Join Role</h3>
           <p>Automatically assign a role to every new member when they join. Independent of verification, it works alongside or without it.</p>
@@ -176,6 +182,11 @@
             <span class="command-perm">Moderate Members</span>
             <p>Manually approve a member's verification</p>
           </div>
+          <div class="command-card">
+            <code>/version</code>
+            <span class="command-perm">Everyone</span>
+            <p>Show the current Zentrynel version</p>
+          </div>
         </div>
       </div>
 
@@ -206,6 +217,11 @@
             <code>/config onjoinrole [role]</code>
             <span class="command-perm">Administrator</span>
             <p>Set or clear on-join role</p>
+          </div>
+          <div class="command-card">
+            <code>/config verificationhoneypot &lt;enabled&gt;</code>
+            <span class="command-perm">Administrator</span>
+            <p>Enable or disable verification-channel honeypot</p>
           </div>
           <div class="command-card">
             <code>/config reset</code>
