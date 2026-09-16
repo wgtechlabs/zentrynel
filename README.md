@@ -36,7 +36,7 @@ DEV_GUILD_ID=your_test_guild_id  # optional, for instant command registration
 Invite the bot to your server (replace `YOUR_CLIENT_ID` with your application client ID):
 
 ```
-https://discord.com/oauth2/authorize?client_id=YOUR_CLIENT_ID&permissions=1101659203590&integration_type=0&scope=bot+applications.commands
+https://discord.com/oauth2/authorize?client_id=YOUR_CLIENT_ID&permissions=1101927640118&integration_type=0&scope=bot+applications.commands
 ```
 
 ## Usage
@@ -110,6 +110,7 @@ Verification is fully in-server (no DMs):
 
 - **Auto-kick unverified members** — `/config verificationkick timeout:1h` kicks members who don't complete verification within the specified duration. Omit the timeout to disable.
 - **Manual review expiry** — `/config manualreviewtimeout timeout:3d` auto-expires stale manual reviews and kicks the member. A reminder is sent before expiry. Omit the timeout to disable.
+- **Verification honeypot** — `/config verificationhoneypot enabled:true` deletes posts in the verify channel, warns the member for three minutes, then permanently bans another post made within 24 hours. The bot needs **Ban Members**, **View Channel**, **Manage Messages**, **Send Messages**, and **Embed Links** there. Use `enabled:false` to disable it.
 
 ## On-Join Role
 

@@ -11,12 +11,11 @@ export const db = {
 		driver.upsertGuildConfig(guildId, config),
 	deleteGuildConfig: (guildId: string): void => driver.deleteGuildConfig(guildId),
 	getGuildsWithIncidentActions: (): GuildConfig[] => driver.getGuildsWithIncidentActions(),
-	getStaleVerificationStates: (): StaleVerificationRow[] =>
-		driver.getStaleVerificationStates(),
-	getRemindableManualReviews: (): StaleManualReviewRow[] =>
-		driver.getRemindableManualReviews(),
-	getExpiredManualReviews: (): StaleManualReviewRow[] =>
-		driver.getExpiredManualReviews(),
+	getStaleVerificationStates: (): StaleVerificationRow[] => driver.getStaleVerificationStates(),
+	getRemindableManualReviews: (): StaleManualReviewRow[] => driver.getRemindableManualReviews(),
+	getExpiredManualReviews: (): StaleManualReviewRow[] => driver.getExpiredManualReviews(),
+	claimHoneypotStrike: (guildId: string, userId: string): boolean =>
+		driver.claimHoneypotStrike(guildId, userId),
 
 	getVerificationState: (guildId: string, userId: string): VerificationState | null =>
 		driver.getVerificationState(guildId, userId),
@@ -27,8 +26,7 @@ export const db = {
 	): void => driver.upsertVerificationState(guildId, userId, state),
 	deleteVerificationState: (guildId: string, userId: string): void =>
 		driver.deleteVerificationState(guildId, userId),
-	resetReviewReminders: (guildId: string): void =>
-		driver.resetReviewReminders(guildId),
+	resetReviewReminders: (guildId: string): void => driver.resetReviewReminders(guildId),
 
 	addWarning: (
 		guildId: string,
