@@ -38,7 +38,5 @@ COPY --chown=nodejs:nodejs package.json ./
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-	CMD node -e "process.exit(0)"
 ENTRYPOINT ["dumb-init", "--"]
 CMD ["/usr/local/bin/docker-entrypoint.sh", "node", "dist/index.js"]

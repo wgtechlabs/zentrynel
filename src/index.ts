@@ -7,7 +7,7 @@ import { logger } from './utils/logger.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-const manager = new ShardingManager(join(__dirname, 'bot.ts'), {
+const manager = new ShardingManager(join(__dirname, 'bot.js'), {
 	token: env.DISCORD_TOKEN,
 	totalShards: 'auto',
 });

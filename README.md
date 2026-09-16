@@ -22,6 +22,7 @@ A sharding-ready Discord moderation bot with an escalating strike system, built 
 
 ```bash
 bun install
+bun run build
 cp .env.example .env
 ```
 
