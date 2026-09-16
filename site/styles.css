@@ -509,6 +509,10 @@ code {
   margin-bottom: 6px;
 }
 
+.step-content {
+  min-width: 0;
+}
+
 .step-content p {
   color: var(--text-secondary);
   font-size: 0.9rem;
@@ -518,6 +522,7 @@ code {
 .step-content code {
   display: inline-block;
   margin-top: 4px;
+  overflow-wrap: anywhere;
 }
 
 .verification-prerequisite {
