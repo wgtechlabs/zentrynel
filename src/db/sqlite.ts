@@ -281,26 +281,19 @@ export function getExpiredManualReviews(): StaleManualReviewRow[] {
 
 // --- Verification Honeypot ---
 
-export function getActiveHoneypotStrike(guildId: string, userId: string): HoneypotStrike | null {
-	return (
-		(getDatabase()
-			.query(
-				"SELECT * FROM honeypot_strikes WHERE guild_id = ? AND user_id = ? AND expires_at > datetime('now')",
-			)
-			.get(guildId, userId) as HoneypotStrike | null) ?? null
-	);
-}
-
-export function addHoneypotStrike(guildId: string, userId: string): void {
-	getDatabase()
+export function claimHoneypotStrike(guildId: string, userId: string): boolean {
+	const claimed = getDatabase()
 		.query(`
 			INSERT INTO honeypot_strikes (guild_id, user_id, expires_at)
 			VALUES (?, ?, datetime('now', '+24 hours'))
 			ON CONFLICT(guild_id, user_id) DO UPDATE SET
 				expires_at = excluded.expires_at,
 				created_at = datetime('now')
+			WHERE honeypot_strikes.expires_at <= datetime('now')
+			RETURNING guild_id
 		`)
-		.run(guildId, userId);
+		.get(guildId, userId);
+	return claimed !== null;
 }
 
 // --- Verification ---

@@ -42,13 +42,6 @@ export interface GuildConfig {
 	updated_at?: string;
 }
 
-export interface HoneypotStrike {
-	guild_id: string;
-	user_id: string;
-	expires_at: string;
-	created_at: string;
-}
-
 export interface VerificationState {
 	guild_id: string;
 	user_id: string;

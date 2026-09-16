@@ -58,7 +58,7 @@ describe('honeypotWarningEmbed', () => {
 		const json = honeypotWarningEmbed().toJSON();
 		expect(json.title).toBe('DO NOT POST MESSAGES IN THIS CHANNEL');
 		expect(json.description).toContain('honeypot');
-		expect(json.description).toContain('permanent ban');
+		expect(json.description).toContain('within 24 hours');
 		expect(json.color).toBe(Colors.BAN);
 	});
 });

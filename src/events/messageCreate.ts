@@ -35,7 +35,7 @@ export async function execute(message: Message): Promise<void> {
 	if (!('permissionsFor' in message.channel)) return;
 
 	const channelPermissions = message.channel.permissionsFor(botMember);
-	if (!channelPermissions?.has(['ManageMessages', 'SendMessages', 'EmbedLinks'])) {
+	if (!channelPermissions?.has(['ViewChannel', 'ManageMessages', 'SendMessages', 'EmbedLinks'])) {
 		logger.error(
 			`Cannot enforce verification honeypot in guild ${message.guild.id}: missing channel permissions`,
 		);
@@ -52,8 +52,8 @@ export async function execute(message: Message): Promise<void> {
 		return;
 	}
 
-	const existingStrike = db.getActiveHoneypotStrike(message.guild.id, message.author.id);
-	if (existingStrike) {
+	const strikeClaimed = db.claimHoneypotStrike(message.guild.id, message.author.id);
+	if (!strikeClaimed) {
 		if (!botMember.permissions.has(PermissionFlagsBits.BanMembers) || !message.member.bannable) {
 			logger.error(
 				`Cannot ban honeypot offender ${message.author.id} in guild ${message.guild.id}`,
@@ -93,7 +93,6 @@ export async function execute(message: Message): Promise<void> {
 			embeds: [honeypotWarningEmbed()],
 			allowedMentions: { users: [message.author.id], roles: [], repliedUser: false },
 		});
-		db.addHoneypotStrike(message.guild.id, message.author.id);
 		db.logAction(
 			message.guild.id,
 			ActionTypes.WARN,

@@ -905,7 +905,9 @@ async function handleVerificationHoneypot(interaction: ChatInputCommandInteracti
 		});
 	}
 
-	const verifyChannel = interaction.guild.channels.cache.get(config.verify_channel_id);
+	const verifyChannel =
+		interaction.guild.channels.cache.get(config.verify_channel_id) ??
+		(await interaction.guild.channels.fetch(config.verify_channel_id).catch(() => null));
 	if (!verifyChannel || verifyChannel.type !== ChannelType.GuildText) {
 		return interaction.reply({
 			embeds: [errorEmbed('The configured verify channel is missing or is not a text channel.')],
@@ -916,12 +918,12 @@ async function handleVerificationHoneypot(interaction: ChatInputCommandInteracti
 	const channelPermissions = verifyChannel.permissionsFor(botMember);
 	if (
 		!botMember.permissions.has(PermissionFlagsBits.BanMembers) ||
-		!channelPermissions?.has(['ManageMessages', 'SendMessages', 'EmbedLinks'])
+		!channelPermissions?.has(['ViewChannel', 'ManageMessages', 'SendMessages', 'EmbedLinks'])
 	) {
 		return interaction.reply({
 			embeds: [
 				errorEmbed(
-					'I need **Ban Members**, plus **Manage Messages**, **Send Messages**, and **Embed Links** in the verify channel.',
+					'I need **Ban Members**, plus **View Channel**, **Manage Messages**, **Send Messages**, and **Embed Links** in the verify channel.',
 				),
 			],
 			flags: [MessageFlags.Ephemeral],

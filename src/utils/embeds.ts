@@ -27,7 +27,7 @@ export function honeypotWarningEmbed(): EmbedBuilder {
 		.setColor(Colors.BAN)
 		.setTitle('DO NOT POST MESSAGES IN THIS CHANNEL')
 		.setDescription(
-			'This is a honeypot verification channel and is not meant for chat.\nA further message will result in a permanent ban.',
+			'This is a honeypot verification channel and is not meant for chat.\nAnother message within 24 hours will result in a permanent ban.',
 		)
 		.setFooter(FOOTER)
 		.setTimestamp();
@@ -52,9 +52,7 @@ export function modActionEmbed({
 }: ModActionEmbedOptions): EmbedBuilder {
 	const color = (Colors as Record<string, number>)[actionType] ?? Colors.INFO;
 
-	const userField = targetUser
-		? `${targetUser} (${targetUser.id})`
-		: 'N/A (channel-wide action)';
+	const userField = targetUser ? `${targetUser} (${targetUser.id})` : 'N/A (channel-wide action)';
 
 	const embed = new EmbedBuilderImpl()
 		.setColor(color)

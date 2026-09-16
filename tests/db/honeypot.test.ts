@@ -21,16 +21,16 @@ afterAll(() => {
 });
 
 describe('verification honeypot persistence', () => {
-	test('stores its opt-in setting and a 24-hour strike', () => {
+	test('stores its opt-in setting and atomically claims a 24-hour strike', () => {
 		const guildId = 'guild';
 		const userId = 'user';
 
 		expect(db.getGuildConfig(guildId).verification_honeypot_enabled).toBe(0);
 
 		db.upsertGuildConfig(guildId, { verification_honeypot_enabled: 1 });
-		db.addHoneypotStrike(guildId, userId);
+		expect(db.claimHoneypotStrike(guildId, userId)).toBe(true);
+		expect(db.claimHoneypotStrike(guildId, userId)).toBe(false);
 
 		expect(db.getGuildConfig(guildId).verification_honeypot_enabled).toBe(1);
-		expect(db.getActiveHoneypotStrike(guildId, userId)).not.toBeNull();
 	});
 });

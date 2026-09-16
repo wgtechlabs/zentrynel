@@ -1,4 +1,4 @@
-import type { GuildConfig, HoneypotStrike, ModAction, VerificationState, Warning } from '../types.js';
+import type { GuildConfig, ModAction, VerificationState, Warning } from '../types.js';
 import type { StaleManualReviewRow, StaleVerificationRow } from './sqlite.js';
 import * as driver from './sqlite.js';
 
@@ -11,16 +11,11 @@ export const db = {
 		driver.upsertGuildConfig(guildId, config),
 	deleteGuildConfig: (guildId: string): void => driver.deleteGuildConfig(guildId),
 	getGuildsWithIncidentActions: (): GuildConfig[] => driver.getGuildsWithIncidentActions(),
-	getStaleVerificationStates: (): StaleVerificationRow[] =>
-		driver.getStaleVerificationStates(),
-	getRemindableManualReviews: (): StaleManualReviewRow[] =>
-		driver.getRemindableManualReviews(),
-	getExpiredManualReviews: (): StaleManualReviewRow[] =>
-		driver.getExpiredManualReviews(),
-	getActiveHoneypotStrike: (guildId: string, userId: string): HoneypotStrike | null =>
-		driver.getActiveHoneypotStrike(guildId, userId),
-	addHoneypotStrike: (guildId: string, userId: string): void =>
-		driver.addHoneypotStrike(guildId, userId),
+	getStaleVerificationStates: (): StaleVerificationRow[] => driver.getStaleVerificationStates(),
+	getRemindableManualReviews: (): StaleManualReviewRow[] => driver.getRemindableManualReviews(),
+	getExpiredManualReviews: (): StaleManualReviewRow[] => driver.getExpiredManualReviews(),
+	claimHoneypotStrike: (guildId: string, userId: string): boolean =>
+		driver.claimHoneypotStrike(guildId, userId),
 
 	getVerificationState: (guildId: string, userId: string): VerificationState | null =>
 		driver.getVerificationState(guildId, userId),
@@ -31,8 +26,7 @@ export const db = {
 	): void => driver.upsertVerificationState(guildId, userId, state),
 	deleteVerificationState: (guildId: string, userId: string): void =>
 		driver.deleteVerificationState(guildId, userId),
-	resetReviewReminders: (guildId: string): void =>
-		driver.resetReviewReminders(guildId),
+	resetReviewReminders: (guildId: string): void => driver.resetReviewReminders(guildId),
 
 	addWarning: (
 		guildId: string,
