@@ -1,4 +1,4 @@
-import type { GuildConfig, ModAction, VerificationState, Warning } from '../types.js';
+import type { GuildConfig, HoneypotStrike, ModAction, VerificationState, Warning } from '../types.js';
 import type { StaleManualReviewRow, StaleVerificationRow } from './sqlite.js';
 import * as driver from './sqlite.js';
 
@@ -17,6 +17,10 @@ export const db = {
 		driver.getRemindableManualReviews(),
 	getExpiredManualReviews: (): StaleManualReviewRow[] =>
 		driver.getExpiredManualReviews(),
+	getActiveHoneypotStrike: (guildId: string, userId: string): HoneypotStrike | null =>
+		driver.getActiveHoneypotStrike(guildId, userId),
+	addHoneypotStrike: (guildId: string, userId: string): void =>
+		driver.addHoneypotStrike(guildId, userId),
 
 	getVerificationState: (guildId: string, userId: string): VerificationState | null =>
 		driver.getVerificationState(guildId, userId),

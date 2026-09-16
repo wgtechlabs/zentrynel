@@ -3,7 +3,13 @@ import { existsSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { Defaults } from '../config/constants.js';
 import { env } from '../config/env.js';
-import type { GuildConfig, ModAction, VerificationState, Warning } from '../types.js';
+import type {
+	GuildConfig,
+	HoneypotStrike,
+	ModAction,
+	VerificationState,
+	Warning,
+} from '../types.js';
 import { createTables } from './schema.js';
 
 let database: Database | null = null;
@@ -58,6 +64,7 @@ const defaultConfig: Omit<GuildConfig, 'guild_id' | 'created_at' | 'updated_at'>
 	mute_duration_default: Defaults.MUTE_DURATION_MS,
 	verification_kick_timeout: Defaults.VERIFICATION_KICK_TIMEOUT,
 	manual_review_timeout: Defaults.MANUAL_REVIEW_TIMEOUT,
+	verification_honeypot_enabled: Defaults.VERIFICATION_HONEYPOT_ENABLED,
 	dm_disabled: Defaults.DM_DISABLED,
 	invites_disabled: Defaults.INVITES_DISABLED,
 };
@@ -93,6 +100,7 @@ export function upsertGuildConfig(guildId: string, config: Partial<GuildConfig>)
 				mute_duration_default,
 				verification_kick_timeout,
 				manual_review_timeout,
+				verification_honeypot_enabled,
 				dm_disabled,
 				invites_disabled,
 				updated_at
@@ -115,6 +123,7 @@ export function upsertGuildConfig(guildId: string, config: Partial<GuildConfig>)
 				$mute_duration_default,
 				$verification_kick_timeout,
 				$manual_review_timeout,
+				$verification_honeypot_enabled,
 				$dm_disabled,
 				$invites_disabled,
 				datetime('now')
@@ -136,6 +145,7 @@ export function upsertGuildConfig(guildId: string, config: Partial<GuildConfig>)
 				mute_duration_default = $mute_duration_default,
 				verification_kick_timeout = $verification_kick_timeout,
 				manual_review_timeout = $manual_review_timeout,
+				verification_honeypot_enabled = $verification_honeypot_enabled,
 				dm_disabled = $dm_disabled,
 				invites_disabled = $invites_disabled,
 				updated_at = datetime('now')
@@ -158,6 +168,7 @@ export function upsertGuildConfig(guildId: string, config: Partial<GuildConfig>)
 			$mute_duration_default: merged.mute_duration_default,
 			$verification_kick_timeout: merged.verification_kick_timeout,
 			$manual_review_timeout: merged.manual_review_timeout,
+			$verification_honeypot_enabled: merged.verification_honeypot_enabled,
 			$dm_disabled: merged.dm_disabled,
 			$invites_disabled: merged.invites_disabled,
 		});
@@ -266,6 +277,30 @@ export function getExpiredManualReviews(): StaleManualReviewRow[] {
 			`)
 			.all() as StaleManualReviewRow[]) ?? []
 	);
+}
+
+// --- Verification Honeypot ---
+
+export function getActiveHoneypotStrike(guildId: string, userId: string): HoneypotStrike | null {
+	return (
+		(getDatabase()
+			.query(
+				"SELECT * FROM honeypot_strikes WHERE guild_id = ? AND user_id = ? AND expires_at > datetime('now')",
+			)
+			.get(guildId, userId) as HoneypotStrike | null) ?? null
+	);
+}
+
+export function addHoneypotStrike(guildId: string, userId: string): void {
+	getDatabase()
+		.query(`
+			INSERT INTO honeypot_strikes (guild_id, user_id, expires_at)
+			VALUES (?, ?, datetime('now', '+24 hours'))
+			ON CONFLICT(guild_id, user_id) DO UPDATE SET
+				expires_at = excluded.expires_at,
+				created_at = datetime('now')
+		`)
+		.run(guildId, userId);
 }
 
 // --- Verification ---

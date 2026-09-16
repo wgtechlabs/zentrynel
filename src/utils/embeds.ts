@@ -22,6 +22,17 @@ export function errorEmbed(description: string): EmbedBuilder {
 		.setTimestamp();
 }
 
+export function honeypotWarningEmbed(): EmbedBuilder {
+	return new EmbedBuilderImpl()
+		.setColor(Colors.BAN)
+		.setTitle('DO NOT POST MESSAGES IN THIS CHANNEL')
+		.setDescription(
+			'This is a honeypot verification channel and is not meant for chat.\nA further message will result in a permanent ban.',
+		)
+		.setFooter(FOOTER)
+		.setTimestamp();
+}
+
 interface ModActionEmbedOptions {
 	actionType: string;
 	targetUser: User | null;

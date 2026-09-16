@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { BOT_VERSION, Colors } from '../../src/config/constants.js';
 import {
 	errorEmbed,
+	honeypotWarningEmbed,
 	modActionEmbed,
 	successEmbed,
 	warningListEmbed,
@@ -49,6 +50,16 @@ describe('errorEmbed', () => {
 	test('includes version footer', () => {
 		const embed = errorEmbed('err');
 		expect(embed.toJSON().footer.text).toBe(EXPECTED_FOOTER);
+	});
+});
+
+describe('honeypotWarningEmbed', () => {
+	test('creates a prominent permanent-ban warning', () => {
+		const json = honeypotWarningEmbed().toJSON();
+		expect(json.title).toBe('DO NOT POST MESSAGES IN THIS CHANNEL');
+		expect(json.description).toContain('honeypot');
+		expect(json.description).toContain('permanent ban');
+		expect(json.color).toBe(Colors.BAN);
 	});
 });
 

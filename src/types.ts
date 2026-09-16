@@ -35,10 +35,18 @@ export interface GuildConfig {
 	mute_duration_default: number;
 	verification_kick_timeout: number;
 	manual_review_timeout: number;
+	verification_honeypot_enabled: number;
 	dm_disabled: number;
 	invites_disabled: number;
 	created_at?: string;
 	updated_at?: string;
+}
+
+export interface HoneypotStrike {
+	guild_id: string;
+	user_id: string;
+	expires_at: string;
+	created_at: string;
 }
 
 export interface VerificationState {
