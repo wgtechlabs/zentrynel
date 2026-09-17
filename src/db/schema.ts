@@ -1,4 +1,6 @@
-import type { Database } from 'bun:sqlite';
+import type BetterSqlite3 from 'better-sqlite3';
+
+type Database = BetterSqlite3.Database;
 
 export const CURRENT_VERSION = 7;
 
@@ -20,18 +22,18 @@ function ensureColumnsExist(
 	tableName: string,
 	requiredColumns: string[],
 ): void {
-	const columns = database.query(`PRAGMA table_info(${tableName})`).all() as TableInfoRow[];
+	const columns = database.prepare(`PRAGMA table_info(${tableName})`).all() as TableInfoRow[];
 	const names = new Set(columns.map((column) => column.name));
 
 	for (const definition of requiredColumns) {
 		const columnName = definition.split(' ')[0] ?? '';
 		if (!columnName || names.has(columnName)) continue;
-		database.run(`ALTER TABLE ${tableName} ADD COLUMN ${definition}`);
+		database.exec(`ALTER TABLE ${tableName} ADD COLUMN ${definition}`);
 	}
 }
 
 export function createTables(database: Database): void {
-	database.run(`
+	database.exec(`
 		CREATE TABLE IF NOT EXISTS guild_config (
 			guild_id TEXT PRIMARY KEY,
 			log_channel_id TEXT,
@@ -58,7 +60,7 @@ export function createTables(database: Database): void {
 		)
 	`);
 
-	database.run(`
+	database.exec(`
 		CREATE TABLE IF NOT EXISTS honeypot_strikes (
 			guild_id TEXT NOT NULL,
 			user_id TEXT NOT NULL,
@@ -68,12 +70,12 @@ export function createTables(database: Database): void {
 		)
 	`);
 
-	database.run(`
+	database.exec(`
 		CREATE INDEX IF NOT EXISTS idx_honeypot_strikes_expires_at
 		ON honeypot_strikes(expires_at)
 	`);
 
-	database.run(`
+	database.exec(`
 		CREATE TABLE IF NOT EXISTS warnings (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			guild_id TEXT NOT NULL,
@@ -85,12 +87,12 @@ export function createTables(database: Database): void {
 		)
 	`);
 
-	database.run(`
+	database.exec(`
 		CREATE INDEX IF NOT EXISTS idx_warnings_guild_user_active
 		ON warnings(guild_id, user_id, active)
 	`);
 
-	database.run(`
+	database.exec(`
 		CREATE TABLE IF NOT EXISTS mod_actions (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			guild_id TEXT NOT NULL,
@@ -104,12 +106,12 @@ export function createTables(database: Database): void {
 		)
 	`);
 
-	database.run(`
+	database.exec(`
 		CREATE INDEX IF NOT EXISTS idx_mod_actions_guild
 		ON mod_actions(guild_id)
 	`);
 
-	database.run(`
+	database.exec(`
 		CREATE TABLE IF NOT EXISTS verification_state (
 			guild_id TEXT NOT NULL,
 			user_id TEXT NOT NULL,
@@ -129,12 +131,12 @@ export function createTables(database: Database): void {
 		)
 	`);
 
-	database.run(`
+	database.exec(`
 		CREATE INDEX IF NOT EXISTS idx_verification_state_guild_status
 		ON verification_state(guild_id, status)
 	`);
 
-	database.run(`
+	database.exec(`
 		CREATE TABLE IF NOT EXISTS schema_version (
 			version INTEGER PRIMARY KEY,
 			applied_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -164,11 +166,11 @@ export function createTables(database: Database): void {
 	]);
 
 	const row = database
-		.query('SELECT version FROM schema_version ORDER BY version DESC LIMIT 1')
+		.prepare('SELECT version FROM schema_version ORDER BY version DESC LIMIT 1')
 		.get() as SchemaVersionRow | undefined;
 	if (!row) {
-		database.run('INSERT INTO schema_version (version) VALUES (?)', [CURRENT_VERSION]);
+		database.prepare('INSERT INTO schema_version (version) VALUES (?)').run(CURRENT_VERSION);
 	} else if (row.version < CURRENT_VERSION) {
-		database.run('INSERT INTO schema_version (version) VALUES (?)', [CURRENT_VERSION]);
+		database.prepare('INSERT INTO schema_version (version) VALUES (?)').run(CURRENT_VERSION);
 	}
 }

@@ -1,4 +1,5 @@
-import { Database } from 'bun:sqlite';
+import Database from 'better-sqlite3';
+import type BetterSqlite3 from 'better-sqlite3';
 import { existsSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { Defaults } from '../config/constants.js';
@@ -12,9 +13,10 @@ import type {
 } from '../types.js';
 import { createTables } from './schema.js';
 
-let database: Database | null = null;
+type DatabaseInstance = BetterSqlite3.Database;
+let database: DatabaseInstance | null = null;
 
-function getDatabase(): Database {
+function getDatabase(): DatabaseInstance {
 	if (!database) {
 		throw new Error('Database not initialized. Call initialize() first.');
 	}
@@ -32,9 +34,9 @@ export function initialize(): void {
 		mkdirSync(dbDir, { recursive: true });
 	}
 
-	database = new Database(env.DB_PATH, { create: true });
-	database.run('PRAGMA journal_mode = WAL');
-	database.run('PRAGMA foreign_keys = ON');
+	database = new Database(env.DB_PATH);
+	database.pragma('journal_mode = WAL');
+	database.pragma('foreign_keys = ON');
 	createTables(database);
 }
 
@@ -71,7 +73,7 @@ const defaultConfig: Omit<GuildConfig, 'guild_id' | 'created_at' | 'updated_at'>
 
 export function getGuildConfig(guildId: string): GuildConfig {
 	const row = getDatabase()
-		.query('SELECT * FROM guild_config WHERE guild_id = ?')
+		.prepare('SELECT * FROM guild_config WHERE guild_id = ?')
 		.get(guildId) as GuildConfig | null;
 	return row ?? { guild_id: guildId, ...defaultConfig };
 }
@@ -81,7 +83,7 @@ export function upsertGuildConfig(guildId: string, config: Partial<GuildConfig>)
 	const merged = { ...current, ...config };
 
 	getDatabase()
-		?.query(`
+		?.prepare(`
 			INSERT INTO guild_config (
 				guild_id,
 				log_channel_id,
@@ -151,37 +153,37 @@ export function upsertGuildConfig(guildId: string, config: Partial<GuildConfig>)
 				updated_at = datetime('now')
 		`)
 		.run({
-			$guild_id: guildId,
-			$log_channel_id: merged.log_channel_id,
-			$mute_role_id: merged.mute_role_id,
-			$verify_channel_id: merged.verify_channel_id,
-			$review_channel_id: merged.review_channel_id,
-			$verified_role_id: merged.verified_role_id,
-			$unverified_role_id: merged.unverified_role_id,
-			$on_join_role_id: merged.on_join_role_id,
-			$verification_enabled: merged.verification_enabled,
-			$verification_min_account_age_hours: merged.verification_min_account_age_hours,
-			$verification_max_attempts: merged.verification_max_attempts,
-			$warn_threshold_mute: merged.warn_threshold_mute,
-			$warn_threshold_kick: merged.warn_threshold_kick,
-			$warn_threshold_ban: merged.warn_threshold_ban,
-			$mute_duration_default: merged.mute_duration_default,
-			$verification_kick_timeout: merged.verification_kick_timeout,
-			$manual_review_timeout: merged.manual_review_timeout,
-			$verification_honeypot_enabled: merged.verification_honeypot_enabled,
-			$dm_disabled: merged.dm_disabled,
-			$invites_disabled: merged.invites_disabled,
+			guild_id: guildId,
+			log_channel_id: merged.log_channel_id,
+			mute_role_id: merged.mute_role_id,
+			verify_channel_id: merged.verify_channel_id,
+			review_channel_id: merged.review_channel_id,
+			verified_role_id: merged.verified_role_id,
+			unverified_role_id: merged.unverified_role_id,
+			on_join_role_id: merged.on_join_role_id,
+			verification_enabled: merged.verification_enabled,
+			verification_min_account_age_hours: merged.verification_min_account_age_hours,
+			verification_max_attempts: merged.verification_max_attempts,
+			warn_threshold_mute: merged.warn_threshold_mute,
+			warn_threshold_kick: merged.warn_threshold_kick,
+			warn_threshold_ban: merged.warn_threshold_ban,
+			mute_duration_default: merged.mute_duration_default,
+			verification_kick_timeout: merged.verification_kick_timeout,
+			manual_review_timeout: merged.manual_review_timeout,
+			verification_honeypot_enabled: merged.verification_honeypot_enabled,
+			dm_disabled: merged.dm_disabled,
+			invites_disabled: merged.invites_disabled,
 		});
 }
 
 export function deleteGuildConfig(guildId: string): void {
-	getDatabase().query('DELETE FROM guild_config WHERE guild_id = ?').run(guildId);
+	getDatabase().prepare('DELETE FROM guild_config WHERE guild_id = ?').run(guildId);
 }
 
 export function getGuildsWithIncidentActions(): GuildConfig[] {
 	return (
 		(getDatabase()
-			.query('SELECT * FROM guild_config WHERE dm_disabled = 1 OR invites_disabled = 1')
+			.prepare('SELECT * FROM guild_config WHERE dm_disabled = 1 OR invites_disabled = 1')
 			.all() as GuildConfig[]) ?? []
 	);
 }
@@ -201,7 +203,7 @@ export interface StaleVerificationRow {
 export function getStaleVerificationStates(): StaleVerificationRow[] {
 	return (
 		(getDatabase()
-			.query(`
+			.prepare(`
 				SELECT vs.guild_id, vs.user_id, vs.status, vs.created_at, gc.verification_kick_timeout
 				FROM verification_state vs
 				JOIN guild_config gc ON vs.guild_id = gc.guild_id
@@ -237,7 +239,7 @@ export interface StaleManualReviewRow {
 export function getRemindableManualReviews(): StaleManualReviewRow[] {
 	return (
 		(getDatabase()
-			.query(`
+			.prepare(`
 				SELECT vs.guild_id, vs.user_id, vs.status, vs.created_at,
 					vs.review_message_id, vs.review_reminded,
 					gc.manual_review_timeout, gc.review_channel_id
@@ -262,7 +264,7 @@ export function getRemindableManualReviews(): StaleManualReviewRow[] {
 export function getExpiredManualReviews(): StaleManualReviewRow[] {
 	return (
 		(getDatabase()
-			.query(`
+			.prepare(`
 				SELECT vs.guild_id, vs.user_id, vs.status, vs.created_at,
 					vs.review_message_id, vs.review_reminded,
 					gc.manual_review_timeout, gc.review_channel_id
@@ -282,18 +284,29 @@ export function getExpiredManualReviews(): StaleManualReviewRow[] {
 // --- Verification Honeypot ---
 
 export function claimHoneypotStrike(guildId: string, userId: string): boolean {
-	const claimed = getDatabase()
-		.query(`
-			INSERT INTO honeypot_strikes (guild_id, user_id, expires_at)
-			VALUES (?, ?, datetime('now', '+24 hours'))
-			ON CONFLICT(guild_id, user_id) DO UPDATE SET
-				expires_at = excluded.expires_at,
-				created_at = datetime('now')
-			WHERE honeypot_strikes.expires_at <= datetime('now')
-			RETURNING guild_id
-		`)
-		.get(guildId, userId);
-	return claimed !== null;
+	const claim = getDatabase().transaction(() => {
+		const existing = getDatabase()
+			.prepare(
+				`SELECT 1
+				 FROM honeypot_strikes
+				 WHERE guild_id = ? AND user_id = ?
+				   AND expires_at > datetime('now')`,
+			)
+			.get(guildId, userId);
+		if (existing) return false;
+
+		getDatabase()
+			.prepare(`
+				INSERT INTO honeypot_strikes (guild_id, user_id, expires_at)
+				VALUES (?, ?, datetime('now', '+24 hours'))
+				ON CONFLICT(guild_id, user_id) DO UPDATE SET
+					expires_at = excluded.expires_at,
+					created_at = datetime('now')
+			`)
+			.run(guildId, userId);
+		return true;
+	});
+	return claim();
 }
 
 // --- Verification ---
@@ -317,7 +330,7 @@ const defaultVerificationState: Omit<
 export function getVerificationState(guildId: string, userId: string): VerificationState | null {
 	return (
 		(getDatabase()
-			.query('SELECT * FROM verification_state WHERE guild_id = ? AND user_id = ?')
+			.prepare('SELECT * FROM verification_state WHERE guild_id = ? AND user_id = ?')
 			.get(guildId, userId) as VerificationState | null) ?? null
 	);
 }
@@ -331,7 +344,7 @@ export function upsertVerificationState(
 	const merged = { ...defaultVerificationState, ...(current ?? {}), ...state };
 
 	getDatabase()
-		.query(`
+		.prepare(`
 			INSERT INTO verification_state (
 				guild_id,
 				user_id,
@@ -376,24 +389,24 @@ export function upsertVerificationState(
 				updated_at = datetime('now')
 		`)
 		.run({
-			$guild_id: guildId,
-			$user_id: userId,
-			$status: merged.status,
-			$attempts: merged.attempts,
-			$risk_score: merged.risk_score,
-			$risk_reasons: merged.risk_reasons,
-			$manual_required: merged.manual_required,
-			$review_message_id: merged.review_message_id,
-			$manual_reason: merged.manual_reason,
-			$last_challenge_at: merged.last_challenge_at,
-			$review_reminded: merged.review_reminded,
-			$invite_code: merged.invite_code,
+			guild_id: guildId,
+			user_id: userId,
+			status: merged.status,
+			attempts: merged.attempts,
+			risk_score: merged.risk_score,
+			risk_reasons: merged.risk_reasons,
+			manual_required: merged.manual_required,
+			review_message_id: merged.review_message_id,
+			manual_reason: merged.manual_reason,
+			last_challenge_at: merged.last_challenge_at,
+			review_reminded: merged.review_reminded,
+			invite_code: merged.invite_code,
 		});
 }
 
 export function deleteVerificationState(guildId: string, userId: string): void {
 	getDatabase()
-		.query('DELETE FROM verification_state WHERE guild_id = ? AND user_id = ?')
+		.prepare('DELETE FROM verification_state WHERE guild_id = ? AND user_id = ?')
 		.run(guildId, userId);
 }
 
@@ -404,7 +417,7 @@ export function deleteVerificationState(guildId: string, userId: string): void {
  */
 export function resetReviewReminders(guildId: string): void {
 	getDatabase()
-		.query(
+		.prepare(
 			"UPDATE verification_state SET review_reminded = 0 WHERE guild_id = ? AND status = 'MANUAL_REVIEW'",
 		)
 		.run(guildId);
@@ -419,7 +432,7 @@ export function addWarning(
 	reason?: string | null,
 ): { id: number | bigint } {
 	const result = getDatabase()
-		.query('INSERT INTO warnings (guild_id, user_id, moderator_id, reason) VALUES (?, ?, ?, ?)')
+		.prepare('INSERT INTO warnings (guild_id, user_id, moderator_id, reason) VALUES (?, ?, ?, ?)')
 		.run(guildId, userId, moderatorId, reason || 'No reason provided');
 	if (!result?.lastInsertRowid) {
 		throw new Error(`Failed to insert warning for guild ${guildId}, user ${userId}`);
@@ -431,7 +444,7 @@ export function getWarnings(guildId: string, userId: string, activeOnly = true):
 	if (activeOnly) {
 		return (
 			(getDatabase()
-				.query(
+				.prepare(
 					'SELECT * FROM warnings WHERE guild_id = ? AND user_id = ? AND active = 1 ORDER BY created_at DESC',
 				)
 				.all(guildId, userId) as Warning[]) ?? []
@@ -439,14 +452,14 @@ export function getWarnings(guildId: string, userId: string, activeOnly = true):
 	}
 	return (
 		(getDatabase()
-			.query('SELECT * FROM warnings WHERE guild_id = ? AND user_id = ? ORDER BY created_at DESC')
+			.prepare('SELECT * FROM warnings WHERE guild_id = ? AND user_id = ? ORDER BY created_at DESC')
 			.all(guildId, userId) as Warning[]) ?? []
 	);
 }
 
 export function getActiveWarningCount(guildId: string, userId: string): number {
 	const row = getDatabase()
-		.query(
+		.prepare(
 			'SELECT COUNT(*) as count FROM warnings WHERE guild_id = ? AND user_id = ? AND active = 1',
 		)
 		.get(guildId, userId) as { count: number } | undefined;
@@ -455,13 +468,13 @@ export function getActiveWarningCount(guildId: string, userId: string): number {
 
 export function deactivateWarning(guildId: string, warningId: number | bigint): void {
 	getDatabase()
-		.query('UPDATE warnings SET active = 0 WHERE id = ? AND guild_id = ?')
+		.prepare('UPDATE warnings SET active = 0 WHERE id = ? AND guild_id = ?')
 		.run(warningId, guildId);
 }
 
 export function clearWarnings(guildId: string, userId: string): void {
 	getDatabase()
-		.query('UPDATE warnings SET active = 0 WHERE guild_id = ? AND user_id = ?')
+		.prepare('UPDATE warnings SET active = 0 WHERE guild_id = ? AND user_id = ?')
 		.run(guildId, userId);
 }
 
@@ -477,7 +490,7 @@ export function logAction(
 	metadata?: unknown,
 ): { id: number | bigint } {
 	const result = getDatabase()
-		.query(
+		.prepare(
 			'INSERT INTO mod_actions (guild_id, action_type, user_id, moderator_id, reason, duration, metadata) VALUES (?, ?, ?, ?, ?, ?, ?)',
 		)
 		.run(
@@ -496,7 +509,7 @@ export function getActions(guildId: string, userId?: string | null, limit = 10):
 	if (userId) {
 		return (
 			(getDatabase()
-				.query(
+				.prepare(
 					'SELECT * FROM mod_actions WHERE guild_id = ? AND user_id = ? ORDER BY created_at DESC LIMIT ?',
 				)
 				.all(guildId, userId, limit) as ModAction[]) ?? []
@@ -504,7 +517,7 @@ export function getActions(guildId: string, userId?: string | null, limit = 10):
 	}
 	return (
 		(getDatabase()
-			.query('SELECT * FROM mod_actions WHERE guild_id = ? ORDER BY created_at DESC LIMIT ?')
+			.prepare('SELECT * FROM mod_actions WHERE guild_id = ? ORDER BY created_at DESC LIMIT ?')
 			.all(guildId, limit) as ModAction[]) ?? []
 	);
 }
