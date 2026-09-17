@@ -333,7 +333,7 @@ async function processStaleVerification(
 
 		if (!member.kickable) {
 			logger.warn(
-				`Cannot kick member ${row.user_id} in guild ${guild.id}: not kickable (role hierarchy)`,
+				`Cannot kick ${member.user.username} (${member.user.id}) in guild ${guild.name} (${guild.id}): not kickable (role hierarchy)`,
 			);
 			return;
 		}
