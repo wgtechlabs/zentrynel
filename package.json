@@ -1,6 +1,6 @@
 {
   "name": "zentrynel",
-  "version": "0.12.1",
+  "version": "0.12.2",
   "description": "Discord moderation bot with escalating strike system, built with Node.js and discord.js v14.",
   "type": "module",
   "main": "dist/index.js",
