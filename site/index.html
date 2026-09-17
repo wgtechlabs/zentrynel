@@ -83,6 +83,12 @@
         </div>
 
         <div class="feature-card">
+          <div class="feature-icon">🛡️</div>
+          <h3>Verification Auto-Kick</h3>
+          <p>Automatically remove members who do not complete verification within your configured timeout, while preserving moderator control through role and permission checks.</p>
+        </div>
+
+        <div class="feature-card">
           <div class="feature-icon">🏷️</div>
           <h3>On-Join Role</h3>
           <p>Automatically assign a role to every new member when they join. Independent of verification, it works alongside or without it.</p>
@@ -224,6 +230,11 @@
             <p>Enable or disable verification-channel honeypot</p>
           </div>
           <div class="command-card">
+            <code>/config verificationkick [timeout]</code>
+            <span class="command-perm">Administrator</span>
+            <p>Auto-kick members who do not complete verification</p>
+          </div>
+          <div class="command-card">
             <code>/config reset</code>
             <span class="command-perm">Administrator</span>
             <p>Reset to defaults</p>
@@ -327,7 +338,7 @@
           <div class="step-number">6</div>
           <div class="step-content">
             <h3>Add Safety Timeouts</h3>
-            <p>Optionally remove members who never verify and expire reviews that moderators do not resolve.</p>
+            <p>Optionally remove members who never verify and expire reviews that moderators do not resolve. The verification auto-kick runs periodically and checks the bot's permissions and role hierarchy before taking action.</p>
             <code>/config verificationkick timeout:1h</code>
             <code>/config manualreviewtimeout timeout:3d</code>
           </div>
