@@ -25,6 +25,7 @@ COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
 COPY . .
 RUN bun run build
+USER 1001
 
 FROM base AS final
 ENV NODE_ENV=production \
