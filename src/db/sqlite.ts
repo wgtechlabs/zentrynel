@@ -285,16 +285,16 @@ export function getExpiredManualReviews(): StaleManualReviewRow[] {
 
 export function claimHoneypotStrike(guildId: string, userId: string): boolean {
 	const claimed = getDatabase()
-		.query(`
+		.prepare(`
 			INSERT INTO honeypot_strikes (guild_id, user_id, expires_at)
-			VALUES (?, ?, datetime('now', '+24 hours'))
+			VALUES ($guild_id, $user_id, datetime('now', '+24 hours'))
 			ON CONFLICT(guild_id, user_id) DO UPDATE SET
 				expires_at = excluded.expires_at,
 				created_at = datetime('now')
 			WHERE honeypot_strikes.expires_at <= datetime('now')
 			RETURNING guild_id
 		`)
-		.get(guildId, userId);
+		.get({ guild_id: guildId, user_id: userId });
 	return claimed !== null;
 }
 
