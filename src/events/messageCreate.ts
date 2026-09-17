@@ -8,6 +8,9 @@ import { logger } from '../utils/logger.js';
 
 export const name = 'messageCreate';
 
+const HONEYPOT_WARNING_DURATION_MS = 90 * 1000;
+const activeHoneypotWarnings = new Map<string, Message>();
+
 export async function execute(message: Message): Promise<void> {
 	if (message.author.bot) return;
 
@@ -54,6 +57,7 @@ export async function execute(message: Message): Promise<void> {
 
 	const strikeClaimed = db.claimHoneypotStrike(message.guild.id, message.author.id);
 	if (!strikeClaimed) {
+		const warningKey = `${message.guild.id}:${message.author.id}`;
 		if (!botMember.permissions.has(PermissionFlagsBits.BanMembers) || !message.member.bannable) {
 			logger.error(
 				`Cannot ban honeypot offender ${message.author.id} in guild ${message.guild.id}`,
@@ -78,6 +82,13 @@ export async function execute(message: Message): Promise<void> {
 				moderator: message.client.user,
 				reason: 'Verification honeypot: repeated message within 24 hours',
 			});
+			const warning = activeHoneypotWarnings.get(warningKey);
+			activeHoneypotWarnings.delete(warningKey);
+			if (warning) {
+				await warning.delete().catch((err: Error) => {
+					logger.error(`Failed to remove honeypot warning ${warning.id}:`, err.message);
+				});
+			}
 		} catch (err) {
 			logger.error(
 				`Failed to ban honeypot offender ${message.author.id} in guild ${message.guild.id}:`,
@@ -106,14 +117,14 @@ export async function execute(message: Message): Promise<void> {
 			moderator: message.client.user,
 			reason: 'Verification honeypot: first message in verify channel',
 		});
-		setTimeout(
-			() => {
-				void warning.delete().catch((err: Error) => {
-					logger.error(`Failed to remove honeypot warning ${warning.id}:`, err.message);
-				});
-			},
-			3 * 60 * 1000,
-		);
+		const warningKey = `${message.guild.id}:${message.author.id}`;
+		activeHoneypotWarnings.set(warningKey, warning);
+		setTimeout(() => {
+			activeHoneypotWarnings.delete(warningKey);
+			void warning.delete().catch((err: Error) => {
+				logger.error(`Failed to remove honeypot warning ${warning.id}:`, err.message);
+			});
+		}, HONEYPOT_WARNING_DURATION_MS);
 	} catch (err) {
 		logger.error(
 			`Failed to send honeypot warning to ${message.author.id} in guild ${message.guild.id}:`,
