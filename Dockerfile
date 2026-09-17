@@ -33,7 +33,10 @@ ENV NODE_ENV=production \
 	HOME=/tmp
 
 RUN addgroup -g 1001 -S nodejs \
-	&& adduser -S nodejs -u 1001 -G nodejs -s /sbin/nologin
+	&& adduser -S nodejs -u 1001 -G nodejs -s /sbin/nologin \
+	&& rm -rf /usr/local/lib/node_modules/npm \
+		/usr/local/bin/npm \
+		/usr/local/bin/npx
 COPY --from=deps --chown=nodejs:nodejs /usr/src/app/node_modules ./node_modules
 COPY --from=build --chown=nodejs:nodejs /usr/src/app/dist ./dist
 COPY --chown=nodejs:nodejs package.json ./
