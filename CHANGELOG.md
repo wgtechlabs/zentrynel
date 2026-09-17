@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [0.12.1] - 2026-09-17
+
+### Changed
+
+- migrate runtime to node.js with bun tooling (#20)
+
 ## [0.12.0] - 2026-09-16
 
 ### Added
