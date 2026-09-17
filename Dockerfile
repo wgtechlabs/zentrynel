@@ -13,7 +13,8 @@ FROM oven/bun:${BUN_VERSION}-alpine AS bun
 
 FROM base AS builder-base
 COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun
-RUN bun --version
+RUN apk add --no-cache python3 make g++ \
+	&& bun --version
 
 FROM builder-base AS deps
 COPY package.json bun.lock ./
