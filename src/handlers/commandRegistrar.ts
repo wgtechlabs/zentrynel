@@ -8,16 +8,11 @@ export async function registerCommands(): Promise<void> {
 
 	const rest = new REST().setToken(env.DISCORD_TOKEN);
 
-	logger.info(`Built ${commandData.length} commands:`);
-	for (const cmd of commandData) {
-		const c = cmd as { name: string; options?: Array<{ type: number; name: string }> };
-		const subs = (c.options ?? []).filter((o) => o.type === 1);
-		const subInfo =
-			subs.length > 0
-				? ` (${subs.length} subcommands: ${subs.map((s) => s.name).join(', ')})`
-				: '';
-		logger.info(`  /${c.name}${subInfo}`);
-	}
+	logger.info(
+		`Prepared ${commandData.length} commands for ${
+			env.DEV_GUILD_ID ? 'guild' : 'global'
+		} registration: ${commandData.map((command) => `/${command.name}`).join(', ')}`,
+	);
 
 	if (env.DEV_GUILD_ID) {
 		// Clear stale global commands so they don't shadow guild-scoped ones
