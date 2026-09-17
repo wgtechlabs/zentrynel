@@ -15,7 +15,8 @@
     "lint:fix": "bunx biome check --write .",
     "format": "bunx biome format --write .",
     "test": "bun test",
-    "preview:captcha": "rm -f scripts/captcha-preview/* && bun run scripts/preview-captcha.ts"
+    "preview:captcha": "rm -f scripts/captcha-preview/* && bun run scripts/preview-captcha.ts",
+    "preview:site": "bun run scripts/preview-site.ts"
   },
   "author": "Waren Gonzaga",
   "license": "GPL-3.0",
