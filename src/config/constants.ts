@@ -2,11 +2,17 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 let pkgVersion = 'unknown';
-try {
-	const pkg = JSON.parse(readFileSync(resolve(import.meta.dirname, '../../package.json'), 'utf-8'));
-	pkgVersion = pkg.version || 'unknown';
-} catch {
-	// package.json missing or malformed — fall back gracefully
+for (const packagePath of [
+	resolve(import.meta.dirname, '../package.json'),
+	resolve(import.meta.dirname, '../../package.json'),
+]) {
+	try {
+		const pkg = JSON.parse(readFileSync(packagePath, 'utf-8'));
+		pkgVersion = pkg.version || 'unknown';
+		break;
+	} catch {
+		// Try the next package location for source and bundled layouts.
+	}
 }
 
 export const BOT_VERSION = pkgVersion;
